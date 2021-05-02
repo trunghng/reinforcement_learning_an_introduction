@@ -11,17 +11,17 @@ GAMMA = 1  # discount factor
 
 def value_iteration(theta):
     V = np.zeros(states.shape)
-    # Assign the value of terminal state value of 1
-    V[GOAL] = 1
+    V_set = []
     policy = np.zeros(V.shape)
 
     while True:
         delta = 0
+        V_set.append(V.copy())
         for state in states[1:GOAL]:
 
             old_value = V[state].copy()
 
-            actions = np.arange(0, min(state, 100 - state) + 1)
+            actions = np.arange(0, min(state, GOAL - state) + 1)
             new_value = 0
             for action in actions:
                 next_head_state = states[state] + action
@@ -38,6 +38,7 @@ def value_iteration(theta):
             print('Max value changed: ', delta)
 
         if delta < theta:
+            V_set.append(V)
             break
 
     for state in states[1:GOAL]:
@@ -52,23 +53,26 @@ def value_iteration(theta):
                           (1 - HEAD_PROB) * (tail_reward + GAMMA * V[next_tail_state]))
         policy[state] = actions[np.argmax(np.round(values[1:], 4)) + 1]
 
-    return V, policy
+    return V_set, policy
 
 
 if __name__ == '__main__':
-    theta = 1e-6
-    optimal_value, optimal_policy = value_iteration(theta)
-    print(optimal_policy)
+    theta = 1e-13
+    value_funcs, optimal_policy = value_iteration(theta)
+    optimal_value = value_funcs[-1]
+    print(optimal_value)
 
-    plt.figure(figsize=(3, 6))
-
-    plt.subplot(2, 1, 1)
-    plt.plot(optimal_value)
+    plt.figure(figsize=(10, 20))
+    plt.subplot(211)
+    for sweep, value in enumerate(value_funcs):
+        plt.plot(value, label='sweep {}'.format(sweep))
     plt.xlabel('Capital')
     plt.ylabel('Value estimates')
-
-    plt.subplot(2, 1, 2)
+    plt.legend(loc='best')
+    plt.subplot(212)
     plt.scatter(states, optimal_policy)
     plt.xlabel('Capital')
     plt.ylabel('Final policy (stake)')
-    plt.show()
+
+    plt.savefig('./gambler.png')
+    plt.close()
