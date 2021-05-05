@@ -60,7 +60,7 @@ def expected_return(state, action, state_value):
                     exp_return += request_prob * return_prob * (reward + GAMMA * state_value[no_cars_first_loc, no_cars_second_loc])
             # """
 
-            # comment this if the number of cars returned is a Poisson rv
+            # Comment this if the number of cars returned is constant
             """
             no_returns_first_loc = EXPECTED_RETURN[0]
             no_returns_second_loc = EXPECTED_RETURN[1]
