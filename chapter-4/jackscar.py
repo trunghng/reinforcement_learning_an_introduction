@@ -50,7 +50,8 @@ def expected_return(state, action, state_value):
             no_cars_first_loc -= no_valid_requests_first_loc
             no_cars_second_loc -= no_valid_requests_second_loc
 
-            """
+            # Uncomment this if the number of cars returned is a constant
+            # """
             for no_returns_first_loc in range(POISSON_UPPER_BOUND):
                 for no_returns_second_loc in range(POISSON_UPPER_BOUND):
 
@@ -59,12 +60,16 @@ def expected_return(state, action, state_value):
                     no_cars_first_loc = min(MAX_CARS, no_cars_first_loc + no_returns_first_loc)
                     no_cars_second_loc = min(MAX_CARS, no_cars_second_loc + no_returns_second_loc)
                     exp_return += request_prob * return_prob * (reward + GAMMA * state_value[no_cars_first_loc, no_cars_second_loc])
-                    """
+            # """
+
+            # comment this if the number of cars returned is a Poisson rv
+            """
             no_returns_first_loc = EXPECTED_RETURN[0]
             no_returns_second_loc = EXPECTED_RETURN[1]
             no_cars_first_loc = min(MAX_CARS, no_cars_first_loc + no_returns_first_loc)
             no_cars_second_loc = min(MAX_CARS, no_cars_second_loc + no_returns_second_loc)
             exp_return += request_prob * (reward + GAMMA * state_value[no_cars_first_loc, no_cars_second_loc])
+            """
 
     return exp_return
 
