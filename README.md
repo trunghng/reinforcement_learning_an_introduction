@@ -3,4 +3,4 @@ Python Implementation for problems in the Reinforcement Learning: An Introductio
 
 (Updating)
 
-Few problems are inspired by this famous [repo](https://github.com/ShangtongZhang/reinforcement-learning-an-introduction) of Shangtong Zhang
+Some ideas in the solutions are inspired by this famous [repo](https://github.com/ShangtongZhang/reinforcement-learning-an-introduction) of Shangtong Zhang
