@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 
 rewards = {'win': 1, 'draw': 0, 'lose': -1, 'ingame_r': 0}
-actions = {'hits': 1, 'sticks': 0, 'bust': -1}
+actions = {'hits': 1, 'sticks': 0, 'busts': -1}
 
 
 def get_card():
@@ -61,7 +61,7 @@ def play():
                 player_sum -= 10
                 player_usable_card = False
             else:
-                action = actions['bust']
+                action = actions['busts']
                 prev_state = game_trajectory[-1][0]
                 prev_player_sum = prev_state[0]
                 game_trajectory.append((prev_state, action, rewards['lose']))
