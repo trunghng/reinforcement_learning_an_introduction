@@ -138,7 +138,7 @@ if __name__ == '__main__':
 
     states = [states_usable_ace_1, states_usable_ace_2, states_no_usable_ace_1, states_no_usable_ace_2]
 
-    fig, axes = plt.subplots(2, 2, figsize=(40, 30))
+    fig, axes = plt.subplots(2, 2, figsize=(30, 22.5))
     plt.subplots_adjust(hspace=0.25, wspace=0.25)
     axes = axes.flatten()
 
@@ -146,8 +146,8 @@ if __name__ == '__main__':
 
     for state, ax, title in zip(states, axes, titles):
         ax.pcolor(state, cmap=cm.coolwarm)
-        ax.set_xlabel('Player sum', fontsize=8)
-        ax.set_ylabel('Dealer showing', fontsize=8)
-        ax.set_title(title, fontsize=9)
+        ax.set_xlabel('Player sum', fontsize=16)
+        ax.set_ylabel('Dealer showing', fontsize=16)
+        ax.set_title(title, fontsize=18)
     plt.savefig('./blackjack_first_visit_MC.png')
     plt.close()
