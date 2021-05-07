@@ -152,20 +152,22 @@ if __name__ == '__main__':
     titles = ['Usable ace, 10000 eps', 'Usable ace, 500000 eps', 'No usable ace, 10000 eps', 'No usable ace, 5000000 eps']
 
     for state, ax, title in zip(states, axes, titles):
-        ax.pcolor(state, cmap=cm.coolwarm)
+        pc = ax.pcolor(state, cmap=cm.coolwarm)
         ax.set_title(title, fontsize=27)
 
         ax.set_ylabel('Player sum', fontsize=20)
         y_ticks_loc = range(12, 22)
-        ystart, yend = ax.get_ylim()
-        ax.set_yticks(np.arange(ystart, yend) + 0.5, minor=False)
+        y_start, y_end = ax.get_ylim()
+        ax.set_yticks(np.arange(y_start, y_end) + 0.5, minor=False)
         ax.set_yticklabels(y_ticks_loc)
 
         ax.set_xlabel('Dealer showing', fontsize=20)
         x_ticks_loc = range(1, 11)
-        xstart, xend = ax.get_xlim()
-        ax.set_xticks(np.arange(xstart, xend) + 0.5, minor=False)
+        x_start, x_end = ax.get_xlim()
+        ax.set_xticks(np.arange(x_start, x_end) + 0.5, minor=False)
         ax.set_xticklabels(x_ticks_loc)
+
+        fig.colorbar(pc, ax=ax)
 
     plt.savefig('./blackjack_first_visit_MC.png')
     plt.close()
