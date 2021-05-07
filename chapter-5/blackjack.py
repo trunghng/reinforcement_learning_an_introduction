@@ -3,6 +3,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from tqdm import tqdm
+import matplotlib.ticker as mticker
 
 
 rewards = {'win': 1, 'draw': 0, 'lose': -1, 'ingame_r': 0}
@@ -79,7 +80,6 @@ def play():
     # dealer's turn (happens when player sticks)
     action = actions['sticks']
     while True:
-
         if dealer_sum > 21:
             if dealer_usable_card:
                 dealer_sum -= 10
@@ -108,9 +108,9 @@ def play():
 
 def first_visit_MC(episodes):
     states_usable_ace = np.zeros((10, 10))
-    states_usable_ace_count = np.ones((10, 10))
+    states_usable_ace_count = np.zeros((10, 10))
     states_no_usable_ace = np.zeros((10, 10))
-    states_no_usable_ace_count = np.ones((10, 10))
+    states_no_usable_ace_count = np.zeros((10, 10))
 
     for i in tqdm(range(episodes)):
         game_trajectory = play()
@@ -129,6 +129,13 @@ def first_visit_MC(episodes):
                 states_no_usable_ace[player_sum, dealer_card] += reward
                 states_no_usable_ace_count[player_sum, dealer_card] += 1
 
+    for i in range(states_usable_ace_count.shape[0]):
+        for j in range(states_usable_ace_count.shape[1]):
+            if states_usable_ace_count[i, j] == 0:
+                states_usable_ace_count[i, j] += 1
+            if states_no_usable_ace_count[i, j] == 0:
+                states_no_usable_ace_count[i, j] += 1
+
     return states_usable_ace / states_usable_ace_count, states_no_usable_ace / states_no_usable_ace_count
 
 
@@ -146,8 +153,19 @@ if __name__ == '__main__':
 
     for state, ax, title in zip(states, axes, titles):
         ax.pcolor(state, cmap=cm.coolwarm)
-        ax.set_xlabel('Player sum', fontsize=16)
-        ax.set_ylabel('Dealer showing', fontsize=16)
-        ax.set_title(title, fontsize=18)
+        ax.set_title(title, fontsize=27)
+
+        ax.set_ylabel('Player sum', fontsize=20)
+        y_ticks_loc = range(12, 22)
+        ystart, yend = ax.get_ylim()
+        ax.set_yticks(np.arange(ystart, yend) + 0.5, minor=False)
+        ax.set_yticklabels(y_ticks_loc)
+
+        ax.set_xlabel('Dealer showing', fontsize=20)
+        x_ticks_loc = range(1, 11)
+        xstart, xend = ax.get_xlim()
+        ax.set_xticks(np.arange(xstart, xend) + 0.5, minor=False)
+        ax.set_xticklabels(x_ticks_loc)
+
     plt.savefig('./blackjack_first_visit_MC.png')
     plt.close()
