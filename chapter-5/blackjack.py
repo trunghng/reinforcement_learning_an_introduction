@@ -54,17 +54,19 @@ def play():
     # player's turn
     # use the strategy that to keep hitting while the card sum < 20
     state = []
+    player_ace_count = 1 if player_usable_card else 0
     while True:
         state = [player_sum, player_usable_card, dealer_showed_card]
 
         if player_sum > 21:
             if player_usable_card:
                 player_sum -= 10
-                player_usable_card = False
+                player_ace_count -= 1
+                if player_ace_count == 0:
+                    player_usable_card = False
             else:
                 action = actions['busts']
                 prev_state = game_trajectory[-1][0]
-                prev_player_sum = prev_state[0]
                 game_trajectory.append((prev_state, action, rewards['lose']))
                 return game_trajectory
         elif player_sum == 20 or player_sum == 21:
@@ -74,16 +76,21 @@ def play():
             game_trajectory.append((state, action, rewards['ingame_r']))
 
             card = get_card()
+            if card == 1:
+                player_ace_count += 1
             player_usable_card = is_usable(card, player_sum)
             player_sum += get_card_value(card, player_usable_card)
 
     # dealer's turn (happens when player sticks)
     action = actions['sticks']
+    dealer_ace_count = 1 if dealer_usable_card else 0
     while True:
         if dealer_sum > 21:
             if dealer_usable_card:
                 dealer_sum -= 10
-                dealer_usable_card = False
+                dealer_ace_count -= 1
+                if dealer_ace_count == 0:
+                    dealer_usable_card = False
             else:
                 game_trajectory.append((state, action, rewards['win']))
                 return game_trajectory
@@ -91,6 +98,8 @@ def play():
             break
         else:
             card = get_card()
+            if card == 1:
+                dealer_ace_count += 1
             dealer_usable_card = is_usable(card, dealer_sum)
             dealer_sum += get_card_value(card, dealer_usable_card)
 
@@ -116,7 +125,7 @@ def first_visit_MC(episodes):
         game_trajectory = play()
 
         for (state, action, reward) in game_trajectory:
-            # since player's sum in range [10, 21]
+            # since player's sum in range [12, 21]
             player_sum = state[0] - 12
             # since dealer's card in range [1, 10]
             dealer_card = state[2] - 1
