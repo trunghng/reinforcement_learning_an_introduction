@@ -22,7 +22,7 @@ def get_card_value(card, player_usable_card):
 
 
 def is_usable(card, player_sum):
-    return True if card == 1 and player_sum < 11 else False
+    return card == 1 and player_sum < 11
 
 
 def play():
@@ -32,12 +32,11 @@ def play():
     player_sum = 0
     player_usable_card = False
 
-    player_card_1 = get_card()
-    player_sum += get_card_value(player_card_1, True)
-
-    player_card_2 = get_card()
-    player_usable_card = is_usable(player_card_2, player_sum)
-    player_sum += get_card_value(player_card_2, player_usable_card)
+    while player_sum < 12:
+        card = get_card()
+        if not player_usable_card:
+            player_usable_card = is_usable(card, player_sum)
+        player_sum += get_card_value(card, is_usable(card, player_sum))
 
     # initial dealer's card
     dealer_sum = 0
@@ -46,24 +45,23 @@ def play():
     dealer_showed_card = get_card()
     dealer_hiden_card = get_card()
 
-    dealer_sum += get_card_value(dealer_showed_card, True)
-    dealer_usable_card = is_usable(dealer_hiden_card, dealer_sum)
-    dealer_sum += get_card_value(dealer_hiden_card, dealer_usable_card)
+    dealer_usable_card = is_usable(dealer_showed_card, dealer_sum)
+    dealer_sum += get_card_value(dealer_showed_card, dealer_usable_card)
+    if not dealer_usable_card:
+        dealer_usable_card = is_usable(dealer_hiden_card, dealer_sum)
+    dealer_sum += get_card_value(dealer_hiden_card, is_usable(dealer_hiden_card, dealer_sum))
 
     # game starts
     # player's turn
     # use the strategy that to keep hitting while the card sum < 20
     state = []
-    player_ace_count = 1 if player_usable_card else 0
     while True:
         state = [player_sum, player_usable_card, dealer_showed_card]
 
         if player_sum > 21:
             if player_usable_card:
                 player_sum -= 10
-                player_ace_count -= 1
-                if player_ace_count == 0:
-                    player_usable_card = False
+                player_usable_card = False
             else:
                 action = actions['busts']
                 return (game_trajectory, rewards['lose'])
@@ -74,21 +72,17 @@ def play():
             game_trajectory.append((state, action))
 
             card = get_card()
-            if card == 1:
-                player_ace_count += 1
-            player_usable_card = is_usable(card, player_sum)
-            player_sum += get_card_value(card, player_usable_card)
+            if not player_usable_card:
+                player_usable_card = is_usable(card, player_sum)
+            player_sum += get_card_value(card, is_usable(card, player_sum))
 
     # dealer's turn (happens when player sticks)
     action = actions['sticks']
-    dealer_ace_count = 1 if dealer_usable_card else 0
     while True:
         if dealer_sum > 21:
             if dealer_usable_card:
                 dealer_sum -= 10
-                dealer_ace_count -= 1
-                if dealer_ace_count == 0:
-                    dealer_usable_card = False
+                dealer_usable_card = False
             else:
                 game_trajectory.append((state, action))
                 return (game_trajectory, rewards['win'])
@@ -96,10 +90,9 @@ def play():
             break
         else:
             card = get_card()
-            if card == 1:
-                dealer_ace_count += 1
-            dealer_usable_card = is_usable(card, dealer_sum)
-            dealer_sum += get_card_value(card, dealer_usable_card)
+            if not dealer_usable_card:
+                dealer_usable_card = is_usable(card, dealer_sum)
+            dealer_sum += get_card_value(card, is_usable(card, dealer_sum))
 
     # compare the final sum between player and dealer (happens when both sum <= 21)
     state = [player_sum, player_usable_card, dealer_showed_card]
@@ -123,9 +116,9 @@ def first_visit_MC(episodes):
 
 def on_policy_first_visit_MC(episodes):
     states_usable_ace = np.zeros((10, 10))
-    states_usable_ace_count = np.zeros((10, 10))
+    states_usable_ace_count = np.ones((10, 10))
     states_no_usable_ace = np.zeros((10, 10))
-    states_no_usable_ace_count = np.zeros((10, 10))
+    states_no_usable_ace_count = np.ones((10, 10))
 
     for i in tqdm(range(episodes)):
         game_trajectory, reward = play()
@@ -145,12 +138,12 @@ def on_policy_first_visit_MC(episodes):
                 states_no_usable_ace[player_sum, dealer_card] += reward
                 states_no_usable_ace_count[player_sum, dealer_card] += 1
 
-    for i in range(states_usable_ace_count.shape[0]):
-        for j in range(states_usable_ace_count.shape[1]):
-            if states_usable_ace_count[i, j] == 0:
-                states_usable_ace_count[i, j] += 1
-            if states_no_usable_ace_count[i, j] == 0:
-                states_no_usable_ace_count[i, j] += 1
+    # for i in range(states_usable_ace_count.shape[0]):
+    #     for j in range(states_usable_ace_count.shape[1]):
+    #         if states_usable_ace_count[i, j] == 0:
+    #             states_usable_ace_count[i, j] += 1
+    #         if states_no_usable_ace_count[i, j] == 0:
+    #             states_no_usable_ace_count[i, j] += 1
 
     return states_usable_ace / states_usable_ace_count, states_no_usable_ace / states_no_usable_ace_count
 
