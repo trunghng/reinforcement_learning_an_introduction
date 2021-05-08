@@ -6,7 +6,7 @@ from tqdm import tqdm
 import matplotlib.ticker as mticker
 
 
-rewards = {'win': 1, 'draw': 0, 'lose': -1, 'ingame_r': 0}
+rewards = {'win': 1, 'draw': 0, 'lose': -1}
 actions = {'hits': 1, 'sticks': 0, 'busts': -1}
 
 
@@ -66,14 +66,12 @@ def play():
                     player_usable_card = False
             else:
                 action = actions['busts']
-                prev_state = game_trajectory[-1][0]
-                game_trajectory.append((prev_state, action, rewards['lose']))
-                return game_trajectory
+                return (game_trajectory, rewards['lose'])
         elif player_sum == 20 or player_sum == 21:
             break
         else:
             action = actions['hits']
-            game_trajectory.append((state, action, rewards['ingame_r']))
+            game_trajectory.append((state, action))
 
             card = get_card()
             if card == 1:
@@ -92,8 +90,8 @@ def play():
                 if dealer_ace_count == 0:
                     dealer_usable_card = False
             else:
-                game_trajectory.append((state, action, rewards['win']))
-                return game_trajectory
+                game_trajectory.append((state, action))
+                return (game_trajectory, rewards['win'])
         elif dealer_sum >= 17:
             break
         else:
@@ -106,13 +104,14 @@ def play():
     # compare the final sum between player and dealer (happens when both sum <= 21)
     state = [player_sum, player_usable_card, dealer_showed_card]
     if player_sum > dealer_sum:
-        game_trajectory.append((state, action, rewards['win']))
+        game_trajectory.append((state, action))
+        return (game_trajectory, rewards['win'])
     elif player_sum == dealer_sum:
-        game_trajectory.append((state, action, rewards['draw']))
+        game_trajectory.append((state, action))
+        return (game_trajectory, rewards['draw'])
     else:
-        game_trajectory.append((state, action, rewards['lose']))
-
-    return game_trajectory
+        game_trajectory.append((state, action))
+        return (game_trajectory, rewards['lose'])
 
 
 def first_visit_MC(episodes):
@@ -121,10 +120,17 @@ def first_visit_MC(episodes):
     states_no_usable_ace = np.zeros((10, 10))
     states_no_usable_ace_count = np.zeros((10, 10))
 
-    for i in tqdm(range(episodes)):
-        game_trajectory = play()
 
-        for (state, action, reward) in game_trajectory:
+def on_policy_first_visit_MC(episodes):
+    states_usable_ace = np.zeros((10, 10))
+    states_usable_ace_count = np.zeros((10, 10))
+    states_no_usable_ace = np.zeros((10, 10))
+    states_no_usable_ace_count = np.zeros((10, 10))
+
+    for i in tqdm(range(episodes)):
+        game_trajectory, reward = play()
+
+        for (state, _) in game_trajectory:
             # since player's sum in range [12, 21]
             player_sum = state[0] - 12
             # since dealer's card in range [1, 10]
@@ -132,6 +138,7 @@ def first_visit_MC(episodes):
 
             # If player having usable card
             if state[1]:
+                # since each state appear only one at most in every episode
                 states_usable_ace[player_sum, dealer_card] += reward
                 states_usable_ace_count[player_sum, dealer_card] += 1
             else:
@@ -149,8 +156,8 @@ def first_visit_MC(episodes):
 
 
 if __name__ == '__main__':
-    states_usable_ace_1, states_no_usable_ace_1 = first_visit_MC(10000)
-    states_usable_ace_2, states_no_usable_ace_2 = first_visit_MC(500000)
+    states_usable_ace_1, states_no_usable_ace_1 = on_policy_first_visit_MC(10000)
+    states_usable_ace_2, states_no_usable_ace_2 = on_policy_first_visit_MC(500000)
 
     states = [states_usable_ace_1, states_usable_ace_2, states_no_usable_ace_1, states_no_usable_ace_2]
 
