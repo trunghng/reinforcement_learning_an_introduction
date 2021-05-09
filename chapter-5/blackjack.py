@@ -3,7 +3,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from tqdm import tqdm
-import matplotlib.ticker as mticker
 
 
 rewards = {'win': 1, 'draw': 0, 'lose': -1}
@@ -113,6 +112,37 @@ def first_visit_MC(episodes):
     states_no_usable_ace = np.zeros((10, 10))
     states_no_usable_ace_count = np.zeros((10, 10))
 
+    for i in tqdm(range(episodes)):
+        game_trajectory, reward = play()
+        visited_usable_ace = np.full((10, 10), False)
+        visited_no_usable_ace = np.full((10, 10), False)
+
+        for (state, _) in game_trajectory:
+            # since player's sum in range [12, 21]
+            player_sum = state[0] - 12
+            # since dealer's card in range [1, 10]
+            dealer_card = state[2] - 1
+
+            if state[1]:
+                if not visited_usable_ace[player_sum, dealer_card]:
+                    states_usable_ace[player_sum, dealer_card] += reward
+                    states_usable_ace_count[player_sum, dealer_card] += 1
+                    visited_usable_ace[player_sum, dealer_card] = True
+            else:
+                if not visited_no_usable_ace[player_sum, dealer_card]:
+                    states_no_usable_ace[player_sum, dealer_card] += reward
+                    states_no_usable_ace_count[player_sum, dealer_card] += 1
+                    visited_no_usable_ace[player_sum, dealer_card] = True
+
+    for i in range(states_usable_ace_count.shape[0]):
+        for j in range(states_usable_ace_count.shape[1]):
+            if states_usable_ace_count[i, j] == 0:
+                states_usable_ace_count[i, j] += 1
+            if states_no_usable_ace_count[i, j] == 0:
+                states_no_usable_ace_count[i, j] += 1
+
+    return states_usable_ace / states_usable_ace_count, states_no_usable_ace / states_no_usable_ace_count
+
 
 def on_policy_first_visit_MC(episodes):
     states_usable_ace = np.zeros((10, 10))
@@ -131,7 +161,6 @@ def on_policy_first_visit_MC(episodes):
 
             # If player having usable card
             if state[1]:
-                # since each state appear only one at most in every episode
                 states_usable_ace[player_sum, dealer_card] += reward
                 states_usable_ace_count[player_sum, dealer_card] += 1
             else:
@@ -149,8 +178,8 @@ def on_policy_first_visit_MC(episodes):
 
 
 if __name__ == '__main__':
-    states_usable_ace_1, states_no_usable_ace_1 = on_policy_first_visit_MC(10000)
-    states_usable_ace_2, states_no_usable_ace_2 = on_policy_first_visit_MC(500000)
+    states_usable_ace_1, states_no_usable_ace_1 = first_visit_MC(10000)
+    states_usable_ace_2, states_no_usable_ace_2 = first_visit_MC(500000)
 
     states = [states_usable_ace_1, states_usable_ace_2, states_no_usable_ace_1, states_no_usable_ace_2]
 
