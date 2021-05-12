@@ -106,6 +106,7 @@ def play():
         return (game_trajectory, rewards['lose'])
 
 
+# first-visit Monte Carlo prediction
 def first_visit_MC(episodes):
     states_usable_ace = np.zeros((10, 10))
     states_usable_ace_count = np.zeros((10, 10))
