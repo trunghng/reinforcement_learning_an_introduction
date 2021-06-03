@@ -7,8 +7,8 @@ from tqdm import tqdm
 
 
 rewards = {'win': 1, 'draw': 0, 'lose': -1}
-actions = {'hits': 1, 'sticks': 0}
-# np.random.seed(13)
+actions = {'hits': 0, 'sticks': 1}
+np.random.seed(27)
 
 
 def get_card():
@@ -114,13 +114,10 @@ def play(player_policy, initial_state=None, initial_action=None):
     # compare the final sum between player and dealer (happens when both sum <= 21)
     state = [player_sum, player_usable_card, dealer_showed_card]
     if player_sum > dealer_sum:
-        game_trajectory.append((state, action))
         return (game_trajectory, rewards['win'])
     elif player_sum == dealer_sum:
-        game_trajectory.append((state, action))
         return (game_trajectory, rewards['draw'])
     else:
-        game_trajectory.append((state, action))
         return (game_trajectory, rewards['lose'])
 
 
@@ -206,8 +203,7 @@ def monte_carlo_ES(episodes):
         values = state_action_values[player_sum, player_usable_card, dealer_showed_card, :] /\
                     np.where(state_action_pair_count[player_sum, player_usable_card, dealer_showed_card, :] == 0,
                         state_action_pair_count[player_sum, player_usable_card, dealer_showed_card, :], 1)
-        # return np.random.choice(np.argwhere(values == np.amax(values)).flatten().tolist())
-        return np.random.choice([action_ for action_, value_ in enumerate(values) if value_ == np.max(values)])
+        return np.random.choice(np.argwhere(values == np.amax(values)).flatten().tolist())
 
     for eps in tqdm(range(episodes)):
         initial_state = [np.random.choice(range(12, 22)), np.random.choice([True, False]), np.random.choice(range(1, 11))]
@@ -307,6 +303,6 @@ def monte_carlo_ES_plot():
 
 
 if __name__ == '__main__':
-    # first_visit_MC_plot()
-    monte_carlo_ES_plot()
+    first_visit_MC_plot()
+    # monte_carlo_ES_plot()
 
