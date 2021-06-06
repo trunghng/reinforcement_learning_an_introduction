@@ -34,6 +34,13 @@ def player_policy(player_sum, player_usable_card, dealer_showed_card):
         return actions['hits']
 
 
+# the policy that choose hits or sticks equally random
+def behavior_policy(player_sum, player_usable_card, dealer_showed_card):
+    if np.random.binomial(1, 0.5):
+        return actions['sticks']
+    return actions['hits']
+
+
 def play(player_policy, initial_state=None, initial_action=None):
     game_trajectory = []
 
@@ -156,39 +163,6 @@ def first_visit_MC(episodes):
     return states_usable_ace / states_usable_ace_count, states_no_usable_ace / states_no_usable_ace_count
 
 
-def on_policy_first_visit_MC(episodes):
-    states_usable_ace = np.zeros((10, 10))
-    states_usable_ace_count = np.ones((10, 10))
-    states_no_usable_ace = np.zeros((10, 10))
-    states_no_usable_ace_count = np.ones((10, 10))
-
-    for _ in tqdm(range(episodes)):
-        game_trajectory, reward = play(player_policy)
-
-        for (state, _) in game_trajectory:
-            # since player's sum in range [12, 21]
-            player_sum = state[0] - 12
-            # since dealer's card in range [1, 10]
-            dealer_card = state[2] - 1
-
-            # If player having usable card
-            if state[1]:
-                states_usable_ace[player_sum, dealer_card] += reward
-                states_usable_ace_count[player_sum, dealer_card] += 1
-            else:
-                states_no_usable_ace[player_sum, dealer_card] += reward
-                states_no_usable_ace_count[player_sum, dealer_card] += 1
-
-    # for i in range(states_usable_ace_count.shape[0]):
-    #     for j in range(states_usable_ace_count.shape[1]):
-    #         if states_usable_ace_count[i, j] == 0:
-    #             states_usable_ace_count[i, j] += 1
-    #         if states_no_usable_ace_count[i, j] == 0:
-    #             states_no_usable_ace_count[i, j] += 1
-
-    return states_usable_ace / states_usable_ace_count, states_no_usable_ace / states_no_usable_ace_count
-
-
 # Monte Carlo Exploring Starts
 def monte_carlo_ES(episodes):
     # state = [player_sum, player_usable_card, dealer_showed_card]
@@ -208,6 +182,7 @@ def monte_carlo_ES(episodes):
     for eps in tqdm(range(episodes)):
         initial_state = [np.random.choice(range(12, 22)), np.random.choice([True, False]), np.random.choice(range(1, 11))]
         initial_action = np.random.choice([actions['hits'], actions['sticks']])
+        # greedy_policy is "behavior policy", while player_policy is "target policy"
         policy = greedy_policy if eps else player_policy
 
         game_trajectory, reward = play(policy, initial_state, initial_action)
@@ -223,9 +198,44 @@ def monte_carlo_ES(episodes):
                 state_action_values[player_sum, player_usable_card, dealer_showed_card, action] += reward
                 state_action_pair_count += 1
 
+    # To avoid dividing by 0
     state_action_pair_count[state_action_pair_count == 0] = 1
     return state_action_values / state_action_pair_count
 
+
+# Monte Carlo Off Policy
+def monte_carlo_off_policy(episodes):
+    initial_state = [13, True, 2]
+    # importance sampling ratio list
+    rhos = np.zeros(episodes)
+    returns = np.zeros(episodes)
+
+    for eps in range(0, episodes):
+        game_trajectory, reward = play(behavior_policy, initial_state)
+
+        rho = 1.0
+        for (state, action) in game_trajectory:
+            player_sum = state[0]
+            player_usable_card = state[1]
+            dealer_showed_card = state[2]
+            if player_policy(player_sum, player_usable_card, dealer_showed_card) == action:
+                rho /= 0.5
+            else:
+                rho = 0
+                break
+        rhos[eps] = rho
+        returns[eps] = reward
+
+    weighted_returns = rhos * returns
+    weighted_returns = np.add.accumulate(weighted_returns)
+    rhos = np.add.accumulate(rhos)
+
+    ordinary_sampling = weighted_returns / np.arange(1, episodes + 1)
+
+    with np.errstate(divide='ignore',invalid='ignore'):
+        weighted_sampling = np.where(rhos != 0, weighted_returns / rhos, 0)
+
+    return ordinary_sampling, weighted_sampling
 
 
 def first_visit_MC_plot():
@@ -302,7 +312,34 @@ def monte_carlo_ES_plot():
     plt.close()
 
 
+def monte_carlo_off_policy_plot():
+    true_value = -0.22726
+    episodes = 10000
+    runs = 100
+    error_ordinary = np.zeros(episodes)
+    error_weighted = np.zeros(episodes)
+    for i in tqdm(range(0, runs)):
+        ordinary_sampling, weighted_sampling = monte_carlo_off_policy(episodes)
+        # get the squared error
+        error_ordinary += np.power(ordinary_sampling - true_value, 2)
+        error_weighted += np.power(weighted_sampling - true_value, 2)
+    error_ordinary /= runs
+    error_weighted /= runs
+
+    plt.plot(np.arange(1, episodes + 1), error_ordinary, color='green', label='Ordinary Importance Sampling')
+    plt.plot(np.arange(1, episodes + 1), error_weighted, color='red', label='Weighted Importance Sampling')
+    plt.ylim(-0.1, 5)
+    plt.xlabel('Episodes (log scale)')
+    plt.ylabel(f'Mean square error\n(average over {runs} runs)')
+    plt.xscale('log')
+    plt.legend()
+
+    plt.savefig('./blackjack_monte_carlo_off_policy.png')
+    plt.close()
+
+
 if __name__ == '__main__':
     first_visit_MC_plot()
-    # monte_carlo_ES_plot()
+    monte_carlo_ES_plot()
+    monte_carlo_off_policy_plot()
 
