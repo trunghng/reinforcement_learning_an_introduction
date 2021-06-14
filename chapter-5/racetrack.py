@@ -52,16 +52,16 @@ class RaceTrack:
 		self.velocity = np.array([0, 0], dtype=np.int16)
 
 
-	def reset(self): #
+	def reset(self):
 		self._generate_start_state()
 		self.velocity = np.array([0, 0], dtype=np.int16)
 
 
-	def get_state(self): #
+	def get_state(self):
 		return self.car_position.copy(), self.velocity.copy()
 
 
-	def _generate_start_state(self): #
+	def _generate_start_state(self):
 		index = np.random.choice(len(self.starting_line))
 		self.car_position = np.array(self.starting_line[index])
 
