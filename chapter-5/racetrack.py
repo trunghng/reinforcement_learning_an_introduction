@@ -134,7 +134,7 @@ def off_policy_MC_control(episodes, gamma, grid):
 	C = np.zeros((x_len, y_len, 5, 5, 3, 3))
 	pi = np.zeros((x_len, y_len, 5, 5, 1, 2), dtype=np.int16)
 	track = RaceTrack(grid)
-	# for epsilon-greedy policy
+	# for epsilon-soft greedy policy
 	epsilon = 0.1
 
 	for ep in tqdm(range(episodes)):
