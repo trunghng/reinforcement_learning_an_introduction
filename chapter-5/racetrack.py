@@ -38,17 +38,6 @@ big_track = ['WWWWWWWWWWWWWWWWWW',
               'WWWWooooooWWWWWWWW',
               'WWWW------WWWWWWWW']
 
-# Tiny track for debug
-
-tiny_track = ['WWWWWW',
-               'Woooo+',
-               'Woooo+',
-               'WooWWW',
-               'WooWWW',
-               'WooWWW',
-               'WooWWW',
-               'W--WWW',]
-
 class RaceTrack:
 
 	def __init__(self, grid):
@@ -145,6 +134,7 @@ def off_policy_MC_control(episodes, gamma, grid):
 	C = np.zeros((x_len, y_len, 5, 5, 3, 3))
 	pi = np.zeros((x_len, y_len, 5, 5, 1, 2), dtype=np.int16)
 	track = RaceTrack(grid)
+	# for epsilon-greedy policy
 	epsilon = 0.1
 
 	for ep in tqdm(range(episodes)):
@@ -187,27 +177,24 @@ def off_policy_MC_control(episodes, gamma, grid):
 
 if __name__ == '__main__':
 	gamma = 0.9
-	episodes = 200000
+	episodes = 10000
 	grid = big_track
 	policy = off_policy_MC_control(episodes, gamma, grid)
 	track_ = RaceTrack(grid)
 	x_len, y_len = len(grid[0]), len(grid)
-	pos_map = np.zeros((x_len, y_len))
-	G = 0
-	for e in range(1000):
+	trace = np.zeros((x_len, y_len))
+	for _ in range(1000):
 		state = track_.get_state()
-		s_x, s_y = state[0][0], state[0][1]
-		s_vx, s_vy = state[1][0], state[1][1]
-		pos_map[s_x, s_y] += 1
-		action = policy[s_x, s_y, s_vx, s_vy, 0]
+		sp_x, sp_y, sv_x, sv_y = state[0][0], state[0][1], state[1][0], state[1][1]
+		trace[sp_x, sp_y] += 1
+		action = policy[sp_x, sp_y, sv_x, sv_y, 0]
 		reward = track_.take_action(action)
-		G += reward
 		if track_.is_terminal():
-			break  
-	print('Sample trajectory on learned policy:')
-	pos_map = (pos_map > 0).astype(np.float32)
-	pos_map +=  track_.track  # overlay track course
-	plt.imshow(np.flipud(pos_map.T), cmap='hot', interpolation='nearest')
-	plt.show()
+			break
+	trace = (trace > 0).astype(np.float32)
+	trace += track_.track
+	plt.imshow(np.flipud(trace.T))
+	plt.savefig('./racetrack_off_policy_control.png')
+	plt.close()
 
 
