@@ -1,11 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import random
 
 np.random.seed(1)
 
-big_course = ['WWWWWWWWWWWWWWWWWW',
+big_track = ['WWWWWWWWWWWWWWWWWW',
               'WWWWooooooooooooo+',
               'WWWoooooooooooooo+',
               'WWWoooooooooooooo+',
@@ -39,9 +38,9 @@ big_course = ['WWWWWWWWWWWWWWWWWW',
               'WWWWooooooWWWWWWWW',
               'WWWW------WWWWWWWW']
 
-# Tiny course for debug
+# Tiny track for debug
 
-tiny_course = ['WWWWWW',
+tiny_track = ['WWWWWW',
                'Woooo+',
                'Woooo+',
                'WooWWW',
@@ -64,16 +63,16 @@ class RaceTrack:
 		self.velocity = np.array([0, 0], dtype=np.int16)
 
 
-	def reset(self):
+	def reset(self): #
 		self._generate_start_state()
 		self.velocity = np.array([0, 0], dtype=np.int16)
 
 
-	def get_state(self):
+	def get_state(self): #
 		return self.car_position.copy(), self.velocity.copy()
 
 
-	def _generate_start_state(self):
+	def _generate_start_state(self): #
 		index = np.random.choice(len(self.starting_line))
 		self.car_position = np.array(self.starting_line[index])
 
@@ -122,6 +121,7 @@ class RaceTrack:
 					self.track[x, y] = 0
 				else:
 					self.track[x, y] = 2
+		# rotate the track in order to sync the track with actions
 		self.track = np.fliplr(self.track)
 		for y in range(y_len):
 			for x in range(x_len):
@@ -132,15 +132,11 @@ class RaceTrack:
 		return self.track[self.car_position[0], self.car_position[1]] == 2
 
 
-def behavior_policy(state):
-	return [np.random.choice([-1, 0, 1]), np.random.choice([-1, 0, 1])]
-
-
-def target_policy(state):
-	pass
-
-
 actions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,0],[0,1],[1,-1],[1,0],[1,1]]
+
+def behavior_policy(state):
+	index = np.random.choice(len(actions))
+	return np.array(actions[index])
 
 
 def off_policy_MC_control(episodes, gamma, grid):
@@ -151,8 +147,8 @@ def off_policy_MC_control(episodes, gamma, grid):
 	track = RaceTrack(grid)
 	epsilon = 0.1
 
-	for ep in range(episodes):
-		print('episode ', ep + 1)
+	for ep in tqdm(range(episodes)):
+		# print('episode ', ep+1)
 		track.reset()
 		trajectory = []
 		while not track.is_terminal():
@@ -160,21 +156,18 @@ def off_policy_MC_control(episodes, gamma, grid):
 			s_x, s_y = state[0][0], state[0][1]
 			s_vx, s_vy = state[1][0], state[1][1]
 			if not np.random.binomial(1, epsilon):
-				action = pi[s_x, s_y, s_vx, s_vy]
+				action = pi[s_x, s_y, s_vx, s_vy, 0]
 			else:
 				action = behavior_policy(state)
-			action = np.array(action).reshape((2,))
 			reward = track.take_action(action)
 			trajectory.append([state, action, reward])
 		G = 0
 		W = 1
-		print(len(trajectory))
 		while len(trajectory) > 0:
 			state, action, reward = trajectory.pop()
 			G = gamma * G + reward
 			sp_x, sp_y, sv_x, sv_y = state[0][0], state[0][1], state[1][0], state[1][1]
 			a_x, a_y = action
-			s = (sp_x, sp_y, sv_x, sv_y)
 			s_a = (sp_x, sp_y, sv_x, sv_y, a_x, a_y)
 			C[s_a] += W
 			Q[s_a] += W/C[s_a]*(G-Q[s_a])
@@ -185,17 +178,17 @@ def off_policy_MC_control(episodes, gamma, grid):
 				if Q[sa_max] > q_max:
 					q_max = Q[sa_max]
 					a_max = act
-			pi[s] = a_max
-			if np.array_equal(pi[s].reshape((2,)), action):
+			pi[sp_x, sp_y, sv_x, sv_y, 0] = a_max
+			if not np.array_equal(pi[sp_x, sp_y, sv_x, sv_y, 0], action):
 				break
-			W *= 1/(1-8/9*epsilon)
+			W *= 1/(1-epsilon+epsilon/9)
 	return pi
 			
 
 if __name__ == '__main__':
 	gamma = 0.9
-	episodes = 100000
-	grid = big_course
+	episodes = 200000
+	grid = big_track
 	policy = off_policy_MC_control(episodes, gamma, grid)
 	track_ = RaceTrack(grid)
 	x_len, y_len = len(grid[0]), len(grid)
@@ -206,8 +199,7 @@ if __name__ == '__main__':
 		s_x, s_y = state[0][0], state[0][1]
 		s_vx, s_vy = state[1][0], state[1][1]
 		pos_map[s_x, s_y] += 1
-		action = policy[s_x, s_y, s_vx, s_vy]
-		action = action.reshape((2, ))
+		action = policy[s_x, s_y, s_vx, s_vy, 0]
 		reward = track_.take_action(action)
 		G += reward
 		if track_.is_terminal():
