@@ -8,6 +8,14 @@ true_value = [1.0 * x / 6 for x in range(1, 6)]
 np.random.seed(13)
 
 
+def is_terminal(state):
+    return state == 0 or state == 6
+
+
+def get_reward(state):
+    return 1 if state == 6 else 0
+
+
 def temporal_difference(V, alpha, gamma, batch_update=False):
     trajectory = []
     state = states['C']
@@ -146,14 +154,6 @@ def rmse_batch_updating(episodes, alpha, gamma):
     plt.legend()
     plt.savefig('./random_walk_batch_updating.png')
     plt.close()
-
-
-def is_terminal(state):
-    return state == 0 or state == 6
-
-
-def get_reward(state):
-    return 1 if state == 6 else 0
 
 
 if __name__ == '__main__':
