@@ -8,7 +8,7 @@ true_value = [1.0 * x / 6 for x in range(1, 6)]
 np.random.seed(13)
 
 
-def temporal_difference(V, alpha, gamma):
+def temporal_difference(V, alpha, gamma, batch_update=False):
     trajectory = []
     state = states['C']
 
@@ -18,15 +18,17 @@ def temporal_difference(V, alpha, gamma):
         next_state = state + action
         reward = get_reward(next_state)
         trajectory.append([state, reward])
-        V[state] += alpha * (reward + gamma * V[next_state] - V[state])
+        if not batch_update:
+            V[state] += alpha * (reward + gamma * V[next_state] - V[state])
         state = next_state
         if is_terminal(state):
+            trajectory.append([state, reward])
             break
 
     return trajectory
 
 
-def monte_carlo(V, alpha, gamma):
+def monte_carlo(V, alpha, gamma, batch_update=False):
     state = states['C']
     trajectory = [[state, 0]]
     # since returns are the same for all states
@@ -42,8 +44,9 @@ def monte_carlo(V, alpha, gamma):
                 returns = 1
             break
 
-    for state_, _ in trajectory[:-1]:
-        V[state_] += alpha * (returns - V[state_])
+    if not batch_update:
+        for state_, _ in trajectory[:-1]:
+            V[state_] += alpha * (returns - V[state_])
 
     return trajectory
 
@@ -65,8 +68,7 @@ def get_state_values(episodes, alpha, gamma):
 
 
 def get_rmse(episodes, gamma):
-    V_TD = np.array([0, 0.5, 0.5, 0.5, 0.5, 0.5, 0])
-    V_MC = np.array([0, 0.5, 0.5, 0.5, 0.5, 0.5, 0])
+    values = np.array([0, 0.5, 0.5, 0.5, 0.5, 0.5, 0])
     td_alphas = [0.05, 0.1, 0.15]
     mc_alphas = [0.01, 0.02, 0.03, 0.04]
     methods = ['TD', 'MC']
@@ -77,19 +79,17 @@ def get_rmse(episodes, gamma):
             linestyle = 'solid'
             alphas = td_alphas
             method = temporal_difference
-            values = V_TD
         else:
             linestyle = 'dashdot'
             alphas = mc_alphas
             method = monte_carlo
-            values = V_MC
 
         for alpha in alphas:
             total_errors = np.zeros(episodes)
             for _ in tqdm(range(runs)):
                 V = values.copy()
                 errors = []
-                for ep in range(episodes):
+                for _ in range(episodes):
                     rmse = np.sqrt(np.sum(np.power(V[1:-1] - true_value, 2) / 5.0))
                     errors.append(rmse)
                     _ = method(V, alpha, gamma)
@@ -98,7 +98,53 @@ def get_rmse(episodes, gamma):
             plt.plot(total_errors, label=method_name + ', alpha = %.02f' % (alpha), linestyle=linestyle)
     plt.xlabel('Episodes')
     plt.ylabel('RMS')
-    plt.legend(loc = 'upper right')
+    plt.legend()
+
+
+def rmse_batch_updating(episodes, alpha, gamma):
+    values = np.array([0, 0.5, 0.5, 0.5, 0.5, 0.5, 0])
+    methods = ['TD', 'MC']
+    runs = 100
+
+    for method_name in methods:
+        if method_name == 'TD':
+            method = temporal_difference
+        else:
+            method = monte_carlo
+
+        total_errors = np.zeros(episodes)
+        for _ in tqdm(range(runs)):
+            V = values.copy()
+            errors = []
+            trajectories = []
+            for _ in range(episodes):
+                trajectory = method(V, alpha, gamma, True)
+                trajectories.append(trajectory)
+
+                while True:
+                    old_values = V.copy()
+                    for trajectory_ in trajectories:
+                        for i in range(len(trajectory_) - 1):
+                            state = trajectory_[i][0]
+                            next_state = trajectory_[i+1][0]
+                            if method_name == 'TD':
+                                reward = trajectory_[i][1]
+                                V[state] += alpha * (reward + gamma * V[next_state] - V[state])
+                            else:
+                                returns = trajectory_[-1][1]
+                                V[state] += alpha * (returns - V[state])
+                    if np.abs(np.sum(V - old_values)) < 1e-3:
+                        break
+
+                rmse = np.sqrt(np.sum(np.power(V[1:-1] - true_value, 2)) / 5.0)
+                errors.append(rmse)
+            total_errors += np.asarray(errors)
+        total_errors /= runs
+        plt.plot(total_errors, label=method_name)
+    plt.xlabel('Episodes')
+    plt.ylabel('RMS')
+    plt.legend()
+    plt.savefig('./random_walk_batch_updating.png')
 
 
 def is_terminal(state):
@@ -121,7 +167,9 @@ if __name__ == '__main__':
     plt.subplot(1, 2, 2)
     get_rmse(episodes, gamma)
     plt.tight_layout()
-
     plt.savefig('./random_walk.png')
+
+    batch_alpha = 0.001
+    rmse_batch_updating(episodes, batch_alpha, gamma)
     plt.close()
 
