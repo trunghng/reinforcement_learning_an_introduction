@@ -145,6 +145,7 @@ def rmse_batch_updating(episodes, alpha, gamma):
     plt.ylabel('RMS')
     plt.legend()
     plt.savefig('./random_walk_batch_updating.png')
+    plt.close()
 
 
 def is_terminal(state):
@@ -168,8 +169,8 @@ if __name__ == '__main__':
     get_rmse(episodes, gamma)
     plt.tight_layout()
     plt.savefig('./random_walk.png')
+    plt.close()
 
     batch_alpha = 0.001
     rmse_batch_updating(episodes, batch_alpha, gamma)
-    plt.close()
 
