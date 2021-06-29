@@ -11,12 +11,11 @@ TERMINAL_STATE = [3, 7]
 START_STATE = [3, 0]
 REWARDS = -1
 
-
-def next_state(state, action):
-    next_state_ = [state[0] + action[0] - WIND_DIST[state[1]], state[1] + action[1]]
-    next_state_ = [max(0, next_state_[0]), max(0, next_state_[1])]
-    next_state_ = [min(GRID_HEIGHT - 1, next_state_[0]), min(GRID_WIDTH - 1, next_state_[1])]
-    return next_state_
+def take_action(state, action):
+    next_state = [state[0] + action[0] - WIND_DIST[state[1]], state[1] + action[1]]
+    next_state = [max(0, next_state[0]), max(0, next_state[1])]
+    next_state = [min(GRID_HEIGHT - 1, next_state[0]), min(GRID_WIDTH - 1, next_state[1])]
+    return next_state
 
 
 def is_terminal(state):
@@ -24,7 +23,7 @@ def is_terminal(state):
 
 
 def epsilon_greedy(epsilon, action_values, state):
-    if np.random.binomial(1, epsilon) == 1:
+    if np.random.binomial(1, epsilon):
         action = ACTION_NAMES.index(np.random.choice(ACTION_NAMES))
     else:
         values = action_values[state[0], state[1], :]
@@ -44,14 +43,34 @@ def sarsa(episodes, alpha, epsilon, gamma):
         while not is_terminal(state):
             steps += 1
             action_name = ACTION_NAMES[action]
-            next_state_ = next_state(state, ACTIONS[action_name])
-            next_action_ = epsilon_greedy(epsilon, Q, next_state_)
-            Q[state[0], state[1], action] += alpha * (REWARDS + gamma * Q[next_state_[0], next_state_[1], next_action_] - Q[state[0], state[1], action])
-            state = next_state_
-            action = next_action_
+            next_state = take_action(state, ACTIONS[action_name])
+            next_action = epsilon_greedy(epsilon, Q, next_state)
+            Q[state[0], state[1], action] += alpha * (REWARDS + gamma * Q[next_state[0], next_state[1], next_action] - Q[state[0], state[1], action])
+            state = next_state
+            action = next_action
         time_steps.append(steps)
 
     return Q, time_steps
+
+
+def print_optimal_policy(Q):
+    print('Optimal policy:')
+    for i in range(GRID_HEIGHT):
+        optimal_policy_row = []
+        for j in range(GRID_WIDTH):
+            if is_terminal([i, j]):
+                optimal_policy_row.append('G')
+                continue
+            best_action = np.argmax(Q[i, j, :])
+            if ACTION_NAMES[best_action] == 'up':
+                optimal_policy_row.append('U')
+            elif ACTION_NAMES[best_action] == 'down':
+                optimal_policy_row.append('D')
+            elif ACTION_NAMES[best_action] == 'left':
+                optimal_policy_row.append('L')
+            elif ACTION_NAMES[best_action] == 'right':
+                optimal_policy_row.append('R')
+        print(optimal_policy_row)
 
 
 if __name__ == '__main__':
@@ -70,20 +89,6 @@ if __name__ == '__main__':
     plt.savefig('./windy_gridworld.png')
     plt.close()
 
-    print('Optimal policy:')
-    for i in range(GRID_HEIGHT):
-        optimal_policy_row = []
-        for j in range(GRID_WIDTH):
-            if is_terminal([i, j]):
-                optimal_policy_row.append('G')
-                continue
-            best_action = np.argmax(Q[i, j, :])
-            if ACTION_NAMES[best_action] == 'up':
-                optimal_policy_row.append('U')
-            elif ACTION_NAMES[best_action] == 'down':
-                optimal_policy_row.append('D')
-            elif ACTION_NAMES[best_action] == 'left':
-                optimal_policy_row.append('L')
-            elif ACTION_NAMES[best_action] == 'right':
-                optimal_policy_row.append('R')
-        print(optimal_policy_row)
+    print_optimal_policy(Q)
+
+    
