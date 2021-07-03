@@ -8,10 +8,9 @@ NO_STATES = 19
 # states with value 0, 20 are 2 dummy states, indicate 2 terminal states.
 STATES = {c: i for c, i in zip(string.ascii_uppercase[:NO_STATES + 1],range(1,  NO_STATES + 1))}
 START_STATE = STATES['J']
-# TRUE_VALUES = [1.0 * i / (NO_STATES + 1) for i in range(NO_STATES + 2)]
-# TRUE_VALUES[-1] = 0
 TRUE_VALUES = np.arange(-20, 22, 2) / 20.0
 TRUE_VALUES[0] = TRUE_VALUES[-1] = 0
+
 
 def is_termial(state):
     return state == 0 or state == NO_STATES + 1
