@@ -5,23 +5,23 @@ Many ideas in the solutions are inspired by and taken from this well-known [repo
 
 DETAILS
 #### Chapter 3: Finite MDPs
-- [x] Gridworld - *Bellman equation*
+- [x] Gridworld - **Bellman equation**
 #### Chapter 4: Dynamic Programming
-- [x] Gridworld - *Iterative Policy Evaluation*
-- [x] Jack's Car Rental - *Policy Iteration*
-- [x] Gambler's Problem - *Value Iteration*
+- [x] Gridworld - **Iterative Policy Evaluation**
+- [x] Jack's Car Rental - **Policy Iteration**
+- [x] Gambler's Problem - **Value Iteration**
 #### Chapter 5: Monte Carlo Methods
-- [x] Blackjack - *First-visit Monte Carlo*
-- [x] Blackjack - *Monte Carlo Exploring Starts*
+- [x] Blackjack - **First-visit Monte Carlo**
+- [x] Blackjack - **Monte Carlo Exploring Starts**
 - [x] Blackjack - *Off-policy Monte Carlo Prediction*
 - [x] Racetrack - *Off-policy Monte Carlo Control*
 #### Chapter 6: TD Learning
-- [x] Random Walk - *Constant-alpha Monte Carlo*, *TD(0)* w&w/o Batch Updating
-- [x] Windy Gridworld - *Sarsa*
-- [x] Cliff Walking - *Q-Learning*
-- [x] Cliff Walking - *Sara*
-- [ ] Cliff Walking - *Expected Sarsa*
+- [x] Random Walk - **Constant-alpha Monte Carlo, TD(0) w&w/o Batch Updating**
+- [x] Windy Gridworld - **Sarsa**
+- [x] Cliff Walking - **Q-Learning**
+- [x] Cliff Walking - **Sarsa**
+- [ ] Cliff Walking - **Expected Sarsa**
 #### Chapter 7: n-step Bootstrapping
-- [x] Random Walk - *n-step TD*
+- [x] Random Walk - **n-step TD**
 #### Chapter 8: Planning and Learning with Tabular Methods
 (Updating)
