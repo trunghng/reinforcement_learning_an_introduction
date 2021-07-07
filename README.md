@@ -1,9 +1,9 @@
 # Reinforcement Learning: An Introduction
 Python Implementation for problems in the Reinforcement Learning: An Introduction book  
 
-Many ideas in the solutions are inspired by and taken from this well-known [repo](https://github.com/ShangtongZhang/reinforcement-learning-an-introduction) of Shangtong Zhang
+Many ideas in the solutions are inspired by or taken from this well-known [repo](https://github.com/ShangtongZhang/reinforcement-learning-an-introduction) of Shangtong Zhang
 
-DETAILS
+### DETAILS
 #### Chapter 3: Finite MDPs
 - [x] Gridworld - **Bellman equation**
 #### Chapter 4: Dynamic Programming
@@ -13,8 +13,8 @@ DETAILS
 #### Chapter 5: Monte Carlo Methods
 - [x] Blackjack - **First-visit Monte Carlo**
 - [x] Blackjack - **Monte Carlo Exploring Starts**
-- [x] Blackjack - *Off-policy Monte Carlo Prediction*
-- [x] Racetrack - *Off-policy Monte Carlo Control*
+- [x] Blackjack - **Off-policy Monte Carlo Prediction**
+- [x] Racetrack - **Off-policy Monte Carlo Control**
 #### Chapter 6: TD Learning
 - [x] Random Walk - **Constant-alpha Monte Carlo, TD(0) w&w/o Batch Updating**
 - [x] Windy Gridworld - **Sarsa**
