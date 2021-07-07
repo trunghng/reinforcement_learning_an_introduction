@@ -6,7 +6,7 @@ import math
 
 NO_STATES = 19
 # states with value 0, 20 are 2 dummy states, indicate 2 terminal states.
-STATES = {c: i for c, i in zip(string.ascii_uppercase[:NO_STATES + 1],range(1,  NO_STATES + 1))}
+STATES = {c: i for c, i in zip(string.ascii_uppercase[:NO_STATES + 1], range(1,  NO_STATES + 1))}
 START_STATE = STATES['J']
 TRUE_VALUES = np.arange(-20, 22, 2) / 20.0
 TRUE_VALUES[0] = TRUE_VALUES[-1] = 0
@@ -39,7 +39,6 @@ def n_step_temporal_difference(V, n, alpha, gamma):
 
     while True:
         if t < T:
-            # not agent's action
             action = np.random.choice([-1, 1])
             next_state, reward = take_action(state, action)
             states.append(next_state)
