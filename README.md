@@ -24,5 +24,9 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 #### Chapter 7: n-step Bootstrapping
 - [x] Random Walk - **n-step TD**
 #### Chapter 8: Planning and Learning with Tabular Methods
-- [ ] Dyna Maze - **Dyna-Q** 
+- [x] Dyna Maze - **Dyna-Q**
+- [x] Blocking Maze - **Dyna-Q**, **Dyna-Q+**
+- [x] Shortcut Maze - **Dyna-Q**, **Dyna-Q+**
+- [x] Prioritized Sweeping - **Dyna-Q**
+#### Chapter 9: On-policy Prediction with Approximation
 (Updating)
