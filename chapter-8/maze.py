@@ -2,9 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import time
+import heapq
+import itertools
 
 
 class Model:
+
     def __init__(self, rand=np.random):
         self.model = dict()
         self.rand = rand
@@ -26,6 +29,7 @@ class Model:
 
 
 class TimeBasedModel(Model):
+
     def __init__(self, maze, kappa, rand=np.random):
         Model.__init__(self, rand)
         self.maze = maze
@@ -40,7 +44,8 @@ class TimeBasedModel(Model):
             self.model[tuple(state)] = dict()
             for action_ in range(len(self.maze.actions)):
                 if action_ != action:
-                    self.model[tuple(state)][action_] = state, self.maze.rewards['non-goal'], 1
+                    # lead back to the same state with a reward of zero
+                    self.model[tuple(state)][action_] = state, 0, 1
         self.model[tuple(state)][action] = next_state, reward, self.current_time_step
 
 
@@ -54,12 +59,51 @@ class TimeBasedModel(Model):
         return state, action, next_state, reward
 
 
+class PQueueModel(Model):
+
+    def __init__(self, rand=np.random):
+        Model.__init__(self, rand)
+        self.pqueue = PriorityQueue()
+        self.predecessor_pairs = dict()
+
+
+    def model_learning(self, state, action, next_state, reward):
+        Model.model_learning(self, state, action, next_state, reward)
+        if tuple(next_state) not in self.predecessor_pairs.keys():
+            self.predecessor_pairs[tuple(next_state)] = set()
+        self.predecessor_pairs[tuple(next_state)].add((tuple(state), action))
+
+
+    def search_control(self):
+        state, action = self.pqueue.pop()
+        next_state, reward = self.model[tuple(state)][action]
+        return state, action, next_state, reward
+
+
+    # return state, action, reward predicted to lead to a state
+    def get_predecessor_pairs(self, state):
+        predecessors_ = []
+        if tuple(state) in self.predecessor_pairs.keys():
+            for pre_state, pre_action in list(self.predecessor_pairs[tuple(state)]):
+                predecessors_.append([pre_state, pre_action, 
+                    self.model[tuple(pre_state)][pre_action][1]])
+        return predecessors_
+
+
 class Maze:
-    def __init__(self, start_state, terminal_state, obstacles=None, max_step=float('inf'), obstacles_change_step=None):
-        self.HEIGHT = 6
-        self.WIDTH = 9
+
+    def __init__(self, 
+                height, 
+                width, 
+                start_state, 
+                terminal_states, 
+                obstacles, 
+                max_step=float('inf'), 
+                obstacles_change_step=None):
+        self._height = height
+        self._width = width
         self._start_state = start_state
-        self._terminal_state = terminal_state
+        self._terminal_states = terminal_states
         self._obstacles = obstacles
         self._actions = {'up': (-1, 0), 'down':(1, 0), 'right': (0, 1), 'left': (0, -1)}
         self._action_names = list(self._actions.keys())
@@ -69,13 +113,23 @@ class Maze:
 
 
     @property
+    def height(self):
+        return self._height
+    
+
+    @property
+    def width(self):
+        return self._width
+    
+
+    @property
     def start_state(self):
         return self._start_state
     
     
     @property
-    def terminal_state(self):
-        return self._terminal_state
+    def terminal_states(self):
+        return self._terminal_states
 
 
     @property
@@ -114,13 +168,17 @@ class Maze:
     
 
     def is_terminal(self, state):
-        return state == self._terminal_state
+        return state in self._terminal_states
+
+
+    def __repr__ (self):
+        return f'{self.start_state}, {self.terminal_states}, {self.obstacles}'
 
 
     def take_action(self, state, action):
         next_state = [state[0] + action[0], state[1] + action[1]]
         next_state = [max(0, next_state[0]), max(0, next_state[1])]
-        next_state = [min(self.HEIGHT - 1, next_state[0]), min(self.WIDTH - 1, next_state[1])]
+        next_state = [min(self.height - 1, next_state[0]), min(self.width - 1, next_state[1])]
         if self.is_terminal(next_state):
             reward = self._rewards['goal']
         else:
@@ -128,6 +186,66 @@ class Maze:
             if next_state in self._obstacles:
                 next_state = state
         return next_state, reward
+
+
+    def extend_state(self, state, resolution):
+        new_states = []
+        for i in range(state[0] * resolution, (state[0] + 1) * resolution):
+            for j in range(state[1] * resolution, (state[1] + 1) * resolution):
+                new_states.append([i, j])
+        return new_states
+
+
+    def extend(self, resolution):
+        height_ = self._height * resolution
+        width_ = self._width * resolution
+        start_state_ = [self._start_state[0] * resolution, self._start_state[1] * resolution]
+        terminal_states_ = [_ for _ in self.extend_state(self._terminal_states[0], resolution)]
+        obstacles_ = []
+        for obstacle_ in self._obstacles:
+            obstacle_.extend(self.extend_state(obstacle_, resolution))
+        maze_ = Maze(height_, width_, start_state_, terminal_states_, obstacles_)
+        return maze_
+
+
+class PriorityQueue:
+    '''
+    This class is taken and modified from 
+    https://docs.python.org/3/library/heapq.html#priority-queue-implementation-notes 
+    '''
+
+    def __init__(self):
+        self.pqueue = []
+        self.entry_finder = {}
+        self.REMOVED = '<removed-item>'
+        self.counter = itertools.count()
+
+
+    def push(self, item, priority=0):
+        if item in self.entry_finder:
+            self.remove(item)
+        count = next(self.counter)
+        entry = [priority, count, item]
+        self.entry_finder[item] = entry
+        heapq.heappush(self.pqueue, entry)
+
+
+    def remove(self, item):
+        entry = self.entry_finder.pop(item)
+        entry[-1]  = self.REMOVED
+
+
+    def pop(self):
+        while self.pqueue:
+            priority, count, item = heapq.heappop(self.pqueue)
+            if item is not self.REMOVED:
+                del self.entry_finder[item]
+                return item
+        raise KeyError('pop from an empty priority queue')
+
+
+    def is_empty(self):
+        return not self.entry_finder
 
 
 def epsilon_greedy(maze, Q, epsilon, state):
@@ -163,11 +281,50 @@ def dyna_q(maze, Q, model, epsilon, alpha, gamma, planning_step):
     return step
 
 
+def prioritized_sweeping(maze, Q, model, epsilon, alpha, gamma, planning_step, theta):
+    state = maze.start_state
+    step = 0
+    updates = 0
+
+    while not maze.is_terminal(state):
+        action = epsilon_greedy(maze, Q, epsilon, state)
+        action_name = maze.action_names[action]
+        next_state, reward = maze.take_action(state, maze.actions[action_name])
+
+        model.model_learning(state, action, next_state, reward)
+
+        priority = np.abs(reward + gamma * np.max(Q[next_state[0], next_state[1], :]) 
+            - Q[state[0], state[1], action])
+        if priority > theta:
+            # since the heap in heapq is a min-heap
+            model.pqueue.push((tuple(state), action), -priority)
+
+        planning_step_count = 0
+        while planning_step_count < planning_step and not model.pqueue.is_empty():
+            state_, action_, next_state_, reward_ = model.search_control()
+            Q[state_[0], state_[1], action_] += alpha * (reward_ + gamma * 
+                np.max(Q[next_state_[0], next_state_[1], :]) - Q[state_[0], state_[1], action_])
+            for pre_state_, pre_action_, pre_reward_ in model.get_predecessor_pairs(state_):
+                priority_ = np.abs(pre_reward_ + gamma * np.max(Q[state_[0], state_[1], :]) 
+                    - Q[pre_state_[0], pre_state_[1], pre_action_])
+                if priority_ > theta:
+                    model.pqueue.push((tuple(pre_state_), pre_action_), -priority_)
+            planning_step_count += 1
+
+        state = next_state
+        step += 1
+        updates += planning_step_count + 1
+
+    return updates
+
+
 def dyna_maze():
+    height = 6
+    width = 9
     start_state = [2, 0]
-    terminal_state = [0, 8]
+    terminal_states = [[0, 8]]
     obstacles = [[0, 7], [1, 7], [2, 7], [1, 2], [2, 2], [3, 2], [4, 5]]
-    maze = Maze(start_state, terminal_state, obstacles)
+    maze = Maze(height, width, start_state, terminal_states, obstacles)
 
     runs = 30
     episodes = 50 
@@ -179,7 +336,7 @@ def dyna_maze():
 
     for _ in tqdm(range(runs)):
         for i, planning_step in enumerate(planning_steps):
-            Q = np.zeros((maze.HEIGHT, maze.WIDTH, len(maze.action_names)))
+            Q = np.zeros((maze.height, maze.width, len(maze.action_names)))
             model = Model()
 
             for ep in range(episodes):
@@ -198,8 +355,10 @@ def dyna_maze():
 
 
 def blocking_maze():
+    height = 6
+    width = 9
     start_state = [5, 3]
-    terminal_state = [0, 8]
+    terminal_states = [[0, 8]]
     obstacles = [[3, i] for i in range(8)]
     new_obstacles = [[3, i] for i in range(1, 9)]
 
@@ -213,14 +372,14 @@ def blocking_maze():
     kappa = 1e-4
     methods = ['Dyna-Q', 'Dyna-Q+']
     rewards = np.zeros((runs, len(methods), max_step))
-    maze = Maze(start_state, terminal_state, obstacles, max_step, obstacles_change_step)
+    maze = Maze(height, width, start_state, terminal_states, obstacles, max_step, obstacles_change_step)
     
     
     for i, method in enumerate(methods):
         print(method)
 
         for run in tqdm(range(runs)):
-            Q = np.zeros((maze.HEIGHT, maze.WIDTH, len(maze.action_names)))
+            Q = np.zeros((maze.height, maze.width, len(maze.action_names)))
             if method == 'Dyna-Q':
                 model = Model()
             else:
@@ -254,8 +413,10 @@ def blocking_maze():
 
 
 def shortcut_maze():
+    height = 6
+    width = 9
     start_state = [5, 3]
-    terminal_state = [0, 8]
+    terminal_states = [[0, 8]]
     obstacles = [[3, i] for i in range(1, 9)]
     new_obstacles = [[3, i] for i in range(1, 8)]
 
@@ -269,13 +430,13 @@ def shortcut_maze():
     kappa = 1e-3
     methods = ['Dyna-Q', 'Dyna-Q+']
     rewards = np.zeros((runs, len(methods), max_step))
-    maze = Maze(start_state, terminal_state, obstacles, max_step, obstacles_change_step)
+    maze = Maze(height, width, start_state, terminal_states, obstacles, max_step, obstacles_change_step)
 
     for i, method in enumerate(methods):
         print(method)
 
         for run in tqdm(range(runs)):
-            Q = np.zeros((maze.HEIGHT, maze.WIDTH, len(maze.action_names)))
+            Q = np.zeros((maze.height, maze.width, len(maze.action_names)))
             if method == 'Dyna-Q':
                 model = Model()
             else:
@@ -308,7 +469,89 @@ def shortcut_maze():
     plt.close()
 
 
+def is_optimal_solution(Q, maze, resolution):
+    max_steps = 14 * resolution * 1.2
+    state = maze.start_state
+    steps = 0
+    while not maze.is_terminal(state):
+        action = np.argmax(Q[state[0], state[1], :])
+        action_name = maze.action_names[action]
+        state, _ = maze.take_action(state, maze.actions[action_name])
+        steps += 1
+        if steps > max_steps:
+            return False
+    return True
+
+
+def mazes():
+    height = 6
+    width = 9
+    start_state = [2, 0]
+    terminal_states = [[0, 8]]
+    obstacles = [[0, 7], [1, 7], [2, 7], [1, 2], [2, 2], [3, 2], [4, 5]]
+    maze = Maze(height, width, start_state, terminal_states, obstacles)
+    resolutions = range(1, 6)
+
+    runs = 5
+    alpha = 0.5
+    epsilon = 0.1
+    gamma = 0.95
+    planning_step = 5
+    theta = 0.0001
+    methods = {
+        'Dyna-Q': {
+            'model': Model,
+            'method': dyna_q,
+            'params': [epsilon, alpha, gamma, planning_step]
+        },
+        'Prioritized Sweeping': {
+            'model': PQueueModel,
+            'method': prioritized_sweeping,
+            'params': [epsilon, alpha, gamma, planning_step, theta]
+        }
+    }
+
+    updates = np.zeros((runs, len(methods), len(resolutions)))
+
+    for i, (method_name, method) in enumerate(methods.items()):
+        print(method_name)
+
+        for run in tqdm(range(runs)):
+            print()
+            for res in resolutions:
+                maze_ = maze.extend(res)
+                print(f'run = {run}, maze size = {maze_.height * maze_.width}')
+
+                Q = np.zeros((maze_.height, maze_.width, len(maze_.action_names)))
+                model = method['model']()
+                steps = []
+
+                while True:
+                    steps.append(method['method'](maze_, Q, model, *method['params']))
+
+                    if is_optimal_solution(Q, maze_, res):
+                        break
+
+                updates[run, i, res - 1] = np.sum(steps)
+        time.sleep(0.1)
+
+    updates = np.mean(updates, axis=0)
+
+    updates[0, :] *= planning_step + 1
+
+    for i, method_name in enumerate(methods):
+        plt.plot(np.arange(1, len(resolutions) + 1), updates[i, :], label=method_name)
+    plt.xlabel('maze resolution factor')
+    plt.ylabel('updates until optimal solution')
+    plt.yscale('log')
+    plt.legend()
+
+    plt.savefig('./prioritized_sweeping.png')
+    plt.close()
+
+
 if __name__ == '__main__':
     dyna_maze()
     blocking_maze()
     shortcut_maze()
+    mazes()

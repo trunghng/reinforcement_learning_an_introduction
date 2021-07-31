@@ -27,6 +27,6 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [x] Dyna Maze - **Dyna-Q**
 - [x] Blocking Maze - **Dyna-Q**, **Dyna-Q+**
 - [x] Shortcut Maze - **Dyna-Q**, **Dyna-Q+**
-- [x] Prioritized Sweeping - **Dyna-Q**
+- [x] Mazes - **Dyna-Q**, **Prioritized Sweeping**
 #### Chapter 9: On-policy Prediction with Approximation
 (Updating)
