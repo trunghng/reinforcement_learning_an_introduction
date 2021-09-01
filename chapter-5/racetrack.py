@@ -47,6 +47,7 @@ class RaceTrack:
 		self.starting_line = []
 		self.track = None
 		self.car_position = None
+		self.actions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,0],[0,1],[1,-1],[1,0],[1,1]]
 		self._load_track(grid)
 		self._generate_start_state()
 		self.velocity = np.array([0, 0], dtype=np.int16)
@@ -121,11 +122,11 @@ class RaceTrack:
 		return self.track[self.car_position[0], self.car_position[1]] == 2
 
 
-actions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,0],[0,1],[1,-1],[1,0],[1,1]]
+# actions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,0],[0,1],[1,-1],[1,0],[1,1]]
 
-def behavior_policy(state):
-	index = np.random.choice(len(actions))
-	return np.array(actions[index])
+def behavior_policy(track, state):
+	index = np.random.choice(len(track.actions))
+	return np.array(track.actions[index])
 
 
 def off_policy_MC_control(episodes, gamma, grid):
@@ -148,7 +149,7 @@ def off_policy_MC_control(episodes, gamma, grid):
 			if not np.random.binomial(1, epsilon):
 				action = pi[s_x, s_y, s_vx, s_vy, 0]
 			else:
-				action = behavior_policy(state)
+				action = behavior_policy(track, state)
 			reward = track.take_action(action)
 			trajectory.append([state, action, reward])
 		G = 0
@@ -163,7 +164,7 @@ def off_policy_MC_control(episodes, gamma, grid):
 			Q[s_a] += W/C[s_a]*(G-Q[s_a])
 			q_max = -1e5
 			a_max = None
-			for act in actions:
+			for act in track.actions:
 				sa_max = sp_x, sp_y, sv_x, sv_y, act[0], act[1]
 				if Q[sa_max] > q_max:
 					q_max = Q[sa_max]

@@ -14,6 +14,7 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [x] Blackjack - **First-visit Monte Carlo**
 - [x] Blackjack - **Monte Carlo Exploring Starts**
 - [x] Blackjack - **Off-policy Monte Carlo Prediction**
+- [x] Infinite Variance - **OIS**
 - [x] Racetrack - **Off-policy Monte Carlo Control**
 #### Chapter 6: TD Learning
 - [x] Random Walk - **Constant-alpha Monte Carlo, TD(0) w&w/o Batch Updating**
@@ -28,5 +29,6 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [x] Blocking Maze - **Dyna-Q**, **Dyna-Q+**
 - [x] Shortcut Maze - **Dyna-Q**, **Dyna-Q+**
 - [x] Mazes - **Dyna-Q**, **Prioritized Sweeping**
+- [ ] 
 #### Chapter 9: On-policy Prediction with Approximation
 (Updating)
