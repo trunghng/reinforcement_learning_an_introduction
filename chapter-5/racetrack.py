@@ -122,8 +122,6 @@ class RaceTrack:
 		return self.track[self.car_position[0], self.car_position[1]] == 2
 
 
-# actions = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,0],[0,1],[1,-1],[1,0],[1,1]]
-
 def behavior_policy(track, state):
 	index = np.random.choice(len(track.actions))
 	return np.array(track.actions[index])
@@ -172,7 +170,7 @@ def off_policy_MC_control(episodes, gamma, grid):
 			pi[sp_x, sp_y, sv_x, sv_y, 0] = a_max
 			if not np.array_equal(pi[sp_x, sp_y, sv_x, sv_y, 0], action):
 				break
-			W *= 1/(1-epsilon+epsilon/9)
+			W *= 1 / (1 - epsilon + epsilon / 9)
 	return pi
 			
 
