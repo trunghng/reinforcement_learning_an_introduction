@@ -58,6 +58,7 @@ def n_step_temporal_difference(V, n, alpha, gamma):
         if tau == T - 1:
             break
         state = next_state
+        
 
 def rmse():
     episodes = 10
