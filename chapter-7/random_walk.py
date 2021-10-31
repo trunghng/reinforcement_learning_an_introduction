@@ -15,6 +15,7 @@ class RandomWalk:
         self.ACTION_RIGHT = 1
         self._actions = [self.ACTION_LEFT, self.ACTION_RIGHT]
         self._action_prob = 0.5
+        self._rewards = [-1, 0, 1]
 
 
     @property
@@ -43,6 +44,11 @@ class RandomWalk:
 
 
     @property
+    def rewards(self):
+        return self._rewards
+
+
+    @property
     def action_prob(self):
         return self._action_prob
     
@@ -54,13 +60,12 @@ class RandomWalk:
     def take_action(self, state, action):
         next_state = state + action
         if next_state == 0:
-            reward = -1
+            reward = self.rewards[0]
         elif next_state == self.n_states + 1:
-            reward = 1
+            reward = self.rewards[2]
         else:
-            reward = 0
+            reward = self.rewards[1]
         return next_state, reward
-
 
 
 def get_true_value(random_walk, gamma):
@@ -80,11 +85,11 @@ def get_true_value(random_walk, gamma):
             next_states.append(next_state)
 
             if next_state == 0:
-                reward = -1
+                reward = random_walk.rewards[0]
             elif next_state == random_walk.n_states + 1:
-                reward = 1
+                reward = random_walk.rewards[2]
             else:
-                reward = 0
+                reward = random_walk.rewards[1]
             rewards.append(reward)
 
         for state_, reward_ in zip(next_states, rewards):
@@ -93,13 +98,12 @@ def get_true_value(random_walk, gamma):
                 r[state_] = reward_
         
     u = np.zeros((random_walk.n_states, ))
-    u[0] = random_walk.action_prob * 1 * (-1 + gamma * -1)
-    u[-1] = random_walk.action_prob * 1 * (1 + gamma * 1)
+    u[0] = random_walk.action_prob * 1 * (-1 + gamma * random_walk.rewards[0])
+    u[-1] = random_walk.action_prob * 1 * (1 + gamma * random_walk.rewards[2])
 
     r = r[1:-1]
     true_value[1:-1] = np.linalg.inv(np.identity(random_walk.n_states) - gamma * P).dot(0.5 * (P.dot(r) + u))
-    true_value[0] = -1
-    true_value[-1] = 1
+    true_value[0] = true_value[-1] = 0
 
     return true_value
 
