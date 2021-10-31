@@ -28,7 +28,8 @@ def iterative_policy_evaluation(theta):
 
                 next_states = []
                 for action in actions:
-                    if i + actions[action][0] == GRID_SIZE or i + actions[action][0] == -1 or j + actions[action][1] == GRID_SIZE or j + actions[action][1] == -1:
+                    if i + actions[action][0] == GRID_SIZE or i + actions[action][0] == -1 \
+                        or j + actions[action][1] == GRID_SIZE or j + actions[action][1] == -1:
                         next_states.append((i, j))
                     else:
                         next_states.append((i + actions[action][0], j + actions[action][1]))
