@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import math
 
 
 class RandomWalk:
@@ -147,9 +146,9 @@ def n_step_temporal_difference(V, n, alpha, gamma, random_walk):
         if tau >= 0:
             G = 0 # return
             for i in range(tau + 1, min(tau + n, T) + 1):
-                G += math.pow(gamma, i - tau - 1) * rewards[i]
+                G += np.power(gamma, i - tau - 1) * rewards[i]
             if tau + n < T:
-                G += math.pow(gamma, n) * V[states[tau + n]]
+                G += np.power(gamma, n) * V[states[tau + n]]
             if not random_walk.is_terminal(states[tau]):
                 V[states[tau]] += alpha * (G - V[states[tau]])
         t += 1
