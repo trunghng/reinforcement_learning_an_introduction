@@ -5,59 +5,48 @@ import math
 
 
 class RandomWalk:
+    '''
+    Random walk environment
+    '''
 
     def __init__(self, n_states, start_state):
-        self._n_states = n_states
-        self._states = np.arange(1, n_states + 1)
-        self._start_state = start_state
-        self._end_states = [0, n_states + 1]
-        self.ACTION_LEFT = -1
-        self.ACTION_RIGHT = 1
-        self._actions = [self.ACTION_LEFT, self.ACTION_RIGHT]
-        self._action_prob = 0.5
-        self._rewards = [-1, 0, 1]
+        self.n_states = n_states
+        self.states = np.arange(1, n_states + 1)
+        self.start_state = start_state
+        self.end_states = [0, n_states + 1]
+        self.actions = [-1, 1]
+        self.action_prob = 0.5
+        self.rewards = [-1, 0, 1]
 
-
-    @property
-    def n_states(self):
-        return self._n_states
-
-
-    @property
-    def states(self):
-        return self._states
-
-
-    @property
-    def start_state(self):
-        return self._start_state
-
-
-    @property
-    def end_states(self):
-        return self._end_states
-
-
-    @property
-    def actions(self):
-        return self._actions
-
-
-    @property
-    def rewards(self):
-        return self._rewards
-
-
-    @property
-    def action_prob(self):
-        return self._action_prob
-    
 
     def is_terminal(self, state):
+        '''
+        Whether state @state is an end state
+
+        Params
+        ------
+        state: int
+            current state
+        '''
         return state in self.end_states
 
 
     def take_action(self, state, action):
+        '''
+        Take action @action at state @state
+
+        Params
+        ------
+        state: int
+            current state
+        action: int
+            action taken
+
+        Return
+        ------
+        (next_state, reward): (int, int)
+            a tuple of next state and reward
+        '''
         next_state = state + action
         if next_state == 0:
             reward = self.rewards[0]
@@ -69,9 +58,15 @@ class RandomWalk:
 
 
 def get_true_value(random_walk, gamma):
-    """
-    Compute true value by Bellman equations
-    """
+    '''
+    Calculate true value of @random_walk by Bellman equations
+
+    Params
+    ------
+    random_walk: RandomWalk
+    gamma: float
+        discount factor
+    '''
     P = np.zeros((random_walk.n_states, random_walk.n_states))
     r = np.zeros((random_walk.n_states + 2, ))
     true_value = np.zeros((random_walk.n_states + 2, ))
@@ -108,23 +103,41 @@ def get_true_value(random_walk, gamma):
     return true_value
 
 
-def get_action(random_walk):
+def random_policy(random_walk):
+    '''
+    Choose an action randomly
+
+    Params
+    ------
+    random_walk: RandomWalk
+    '''
     return np.random.choice(random_walk.actions)
 
 
 def n_step_temporal_difference(V, n, alpha, gamma, random_walk):
+    '''
+    n-step TD
+
+    Params
+    ------
+    V: np.ndarray
+        value function
+    n: int
+        number of steps
+    alpha: float
+        step size
+    random_walk: RandomWalk
+    '''
     state = random_walk.start_state
+    states = [state]
+
     T = float('inf')
     t = 0
-
-    states = []
-    states.append(state)
-    rewards = []
-    rewards.append(0) # dummy reward to save the next reward as R_{t+1}
+    rewards = [0] # dummy reward to save the next reward as R_{t+1}
 
     while True:
         if t < T:
-            action = get_action(random_walk)
+            action = random_policy(random_walk)
             next_state, reward = random_walk.take_action(state, action)
             states.append(next_state)
             rewards.append(reward)
@@ -146,13 +159,19 @@ def n_step_temporal_difference(V, n, alpha, gamma, random_walk):
         
 
 def rmse():
+    '''
+    Calculate RMS error
+    '''
+    n_states = 19
+    start_state = 10
+    gamma = 1
+    random_walk = RandomWalk(n_states, start_state)
+    true_value = get_true_value(random_walk, gamma)
+
     episodes = 10
     runs = 100
-    gamma = 1
     ns = np.power(2, np.arange(0, 10))
     alphas = np.arange(0, 1.1, 0.1)
-    random_walk = RandomWalk(19, 10)
-    true_value = get_true_value(random_walk, gamma)
 
     errors = np.zeros((len(ns), len(alphas)))
     for n_i, n in enumerate(ns):
@@ -168,8 +187,8 @@ def rmse():
 
     for i in range(0, len(ns)):
         plt.plot(alphas, errors[i, :], label='n = %d' % (ns[i]))
-    plt.xlabel('alpha')
-    plt.ylabel('RMS error')
+    plt.xlabel(r'$\alpha$')
+    plt.ylabel('Average RMS error')
     plt.ylim([0.25, 0.55])
     plt.legend()
     plt.savefig('./random_walk.png')
@@ -178,8 +197,4 @@ def rmse():
 
 if __name__ == '__main__':
     rmse()
-
-
-
-
 
