@@ -17,7 +17,7 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [x] Infinite Variance - **OIS**
 - [x] Racetrack - **Off-policy Monte Carlo Control**
 #### Chapter 6: TD Learning
-- [x] Random Walk - **Constant-alpha Monte Carlo, TD(0) w/&w/o Batch Updating**
+- [x] Random Walk - **Constant-alpha Monte Carlo, TD(0) w/ & w/o Batch Updating**
 - [x] Windy Gridworld - **Sarsa**
 - [x] Cliff Walking - **Q-Learning**
 - [x] Cliff Walking - **Sarsa**
@@ -31,4 +31,8 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [x] Mazes - **Dyna-Q**, **Prioritized Sweeping**
 - [x] Trajectory Sampling
 #### Chapter 9: On-policy Prediction with Approximation
+- [x] Random walk - **Gradient Monte Carlo w/ State Aggregation**
+- [x] Random walk - **Semi-gradient TD**
+- [ ] Random walk - **Gradient Monte Carlo w/ Fourier basis & polynomial basis**
+- [ ] Square wave - **Linear function approximation based on Coarse Coding**
 (Updating)

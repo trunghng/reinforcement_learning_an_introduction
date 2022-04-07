@@ -40,7 +40,7 @@ class RandomWalk:
         state: int
             current state
         action: int
-            action take
+            action taken
 
         Return
         ------
@@ -87,24 +87,8 @@ class RandomWalk:
 
 
     def get_next_state(self, state, action):
-        '''
-        Get the next state from possible next states
-
-        Params
-        ------
-        pos_next_state: np.ndarray
-            list of possible next states
-
-        Return
-        ------
-        next_state: int
-            next state
-        '''
-        pos_next_states = self.get_pos_next_states(state, action)
-        state_transition = self.get_state_transition(state, pos_next_states)
-
-        next_state = np.random.choice(pos_next_states, p=state_transition)
-
+        step = np.random.randint(1, self.transition_radius + 1)
+        next_state = min(self.end_states[1], max(self.end_states[0], state + action * step))
         return next_state
 
 
@@ -161,7 +145,6 @@ def get_true_value(random_walk):
     Params
     ------
     random_walk: RandomWalk
-        random walk env
 
     Return
     ------
@@ -197,6 +180,13 @@ def get_true_value(random_walk):
 
 
 def random_policy(random_walk):
+    '''
+    Choose an action randomly
+
+    Params
+    ------
+    random_walk: RandomWalk
+    '''
     return np.random.choice(random_walk.actions)
 
 
@@ -225,7 +215,7 @@ class StateAggregation:
         group_idx: int
             group index
         '''
-        group_idx = int((state - 1) // self.group_size)
+        group_idx = (state - 1) // self.group_size
         return group_idx
 
 
@@ -282,7 +272,6 @@ def gradient_mc_state_aggregation(state_agg, random_walk, alpha, mu):
     ------
     state_agg: StateAggregation
     random_walk: RandomWalk
-        random walk env
     alpha: float
         step size
     mu: np.ndarray
@@ -301,14 +290,20 @@ def gradient_mc_state_aggregation(state_agg, random_walk, alpha, mu):
     # since reward at every states except terminal ones is 0, and discount factor gamma = 1,
     # the return at each state is equal to the reward at the terminal state.
     for state in trajectory[:-1]:
-        state_agg.w += alpha * (reward - 
-            state_agg.get_value(state, random_walk)) * state_agg.get_grad(state)
+        state_agg.w += alpha * (reward - state_agg.get_value(state, random_walk)) \
+            * state_agg.get_grad(state)
         mu[state] += 1
 
 
 def gradient_mc_state_aggregation_plot(random_walk, true_value):
     '''
     Plotting gradient MC w/ state aggregation
+
+    Params
+    ------
+    random_walk: RandomWalk
+    true_value: np.ndarray
+        true values
     '''
     alpha = 2e-5
     n_groups = 10
@@ -341,6 +336,127 @@ def gradient_mc_state_aggregation_plot(random_walk, true_value):
     plt.close()
 
 
+def n_step_semi_gradient_td(state_agg, random_walk, n, alpha, gamma):
+    '''
+    n-step semi-gradient TD
+
+    Params
+    ------
+    state_agg: StateAggregation
+    random_walk: RandomWalk
+    n: int
+        number of step
+    alpha: float
+        step size
+    gamma: float
+        discount factor
+    '''
+    state = random_walk.start_state
+    states = [state]
+
+    T = float('inf')
+    t = 0
+    rewards = [0] # dummy reward to save the next reward as R_{t+1}
+
+    while True:
+        if t < T:
+            action = random_policy(random_walk)
+            next_state, reward = random_walk.take_action(state, action)
+            states.append(next_state)
+            rewards.append(reward)
+            if random_walk.is_terminal(next_state):
+                T = t + 1
+        tau = t - n + 1
+        if tau >= 0:
+            G = 0
+            for i in range(tau + 1, min(tau + n, T) + 1):
+                G += np.power(gamma, i - tau - 1) * rewards[i]
+            if tau + n < T:
+                G += np.power(gamma, n) * state_agg.get_value(states[tau + n], random_walk)
+            if not random_walk.is_terminal(states[tau]):
+                state_agg.w += alpha * (G - state_agg.get_value(states[tau], random_walk)) * \
+                    state_agg.get_grad(states[tau])
+        t += 1
+        if tau == T - 1:
+            break
+        state = next_state
+
+
+def semi_gradient_td_0_plot(random_walk, true_value):
+    '''
+    Plotting semi-gradient TD(0)
+
+    Params
+    ------
+    random_walk: RandomWalk
+    true_value: np.ndarray
+        true values
+    '''
+    alpha = 2e-4
+    n_groups = 10
+    n_eps = 100000
+    gamma = 1
+    state_agg = StateAggregation(n_groups, random_walk.n_states)
+
+    for _ in tqdm(range(n_eps)):
+        n_step_semi_gradient_td(state_agg, random_walk, 1, alpha, gamma)
+
+    value_funcs = [state_agg.get_value(state, random_walk)
+        for state in random_walk.states]
+
+    plt.plot(random_walk.states, value_funcs, 
+        label=r'Approximate TD value $\hat{v}$', color='blue')
+    plt.plot(random_walk.states, true_value[1: -1], 
+        label=r'True value $v_\pi$', color='red')
+    plt.xlabel('State')
+    plt.ylabel('Value scale')
+    plt.legend()
+
+
+def n_step_semi_gradient_td_plot(random_walk, true_value):
+    '''
+    Plotting n-step semi-gradient TD
+    '''
+    n_eps = 10
+    n_runs = 100
+    n_groups = 20
+    gamma = 1
+    ns = np.power(2, np.arange(0, 10))
+    alphas = np.arange(0, 1.1, 0.1)
+
+    errors = np.zeros((len(ns), len(alphas)))
+    for n_i, n in enumerate(ns):
+        for alpha_i, alpha in enumerate(alphas):
+            for _ in tqdm(range(n_runs)):
+                state_agg = StateAggregation(n_groups, random_walk.n_states)
+                for _ in range(n_eps):
+                    n_step_semi_gradient_td(state_agg, random_walk, n, alpha, gamma)
+                    state_values = np.array([state_agg.get_value(state, random_walk) 
+                        for state in random_walk.states])
+                    rmse = np.sqrt(np.sum(np.power(state_values - true_value[1: -1], 2) 
+                        / random_walk.n_states))
+                    errors[n_i, alpha_i] += rmse
+
+    errors /= n_eps * n_runs
+
+    for i in range(0, len(ns)):
+        plt.plot(alphas, errors[i, :], label='n = %d' % (ns[i]))
+    plt.xlabel(r'$\alpha$')
+    plt.ylabel('Average RMS error')
+    plt.ylim([0.25, 0.55])
+    plt.legend()
+
+
+def semi_gradient_td_plot(random_walk, true_value):
+    plt.figure(figsize=(20, 10))
+    plt.subplot(121)
+    semi_gradient_td_0_plot(random_walk, true_value)
+    plt.subplot(122)
+    n_step_semi_gradient_td_plot(random_walk, true_value)
+    plt.savefig('./semi_gradient_td.png')
+    plt.close()
+
+
 if __name__ == '__main__':
     n_states = 1000
     start_state = 500
@@ -349,13 +465,5 @@ if __name__ == '__main__':
     true_value = get_true_value(random_walk)
 
     gradient_mc_state_aggregation_plot(random_walk, true_value)
-    
-
-
-
-
-
-
-
-
+    semi_gradient_td_plot(random_walk, true_value)
 
