@@ -218,7 +218,3 @@ if __name__ == '__main__':
     print_optimal_policy(Q_q_learning, grid_world)
     print('Sarsa\'s optimal policy:')
     print_optimal_policy(Q_sarsa, grid_world)
-
-
-
-
