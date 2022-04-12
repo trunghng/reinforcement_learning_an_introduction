@@ -3,113 +3,206 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
-GRID_HEIGHT = 4
-GRID_WIDTH = 13
-TERMINAL_STATE = [3, 12]
-START_STATE = [3, 0]
-CLIFF = [[3, x] for x in range(1, 12)]
-ACTIONS = {'up': (-1, 0), 'down': (1, 0), 'right': (0, 1), 'left': (0, -1)}
-ACTION_NAMES = list(ACTIONS.keys())
-REWARDS = {'cliff': -100, 'non-cliff': -1}
+class GridWorld:
 
 
-def is_terminal(state):
-    return state == TERMINAL_STATE
+    def __init__(self, height, width, start_state, end_state, cliff):
+        self.height = height
+        self.width = width
+        self.start_state = start_state
+        self.end_state = end_state
+        self.cliff = cliff
+        self.actions = [(-1, 0), (1, 0), (0, 1), (0, -1)]
+        self.rewards = {'cliff': -100, 'non-cliff': -1}
 
 
-def take_action(state, action):
-    next_state = [state[0] + action[0], state[1] + action[1]]
-    next_state = [max(0, next_state[0]), max(0, next_state[1])]
-    next_state = [min(GRID_HEIGHT - 1, next_state[0]), min(GRID_WIDTH - 1, next_state[1])]
-    if next_state in CLIFF:
-        reward = REWARDS['cliff']
-        next_state = START_STATE
-    else:
-        reward = REWARDS['non-cliff']
-    return next_state, reward
+    def is_terminal(self, state):
+        '''
+        Whether state @state is an end state
+
+        Params
+        ------
+        state: [int, int]
+            current state
+        '''
+        return state == self.end_state
 
 
-def epsilon_greedy(epsilon, Q, state):
+    def take_action(self, state, action):
+        '''
+        Take action @action at state @state
+
+        Params
+        ------
+        state: [int, int]
+            current state
+        action: (int, int)
+            action taken
+
+        Return
+        ------
+        (next_state, reward): ([int, int], int)
+            a tuple of next state and reward
+        '''
+        next_state = [state[0] + action[0], state[1] + action[1]]
+        next_state = [max(0, next_state[0]), max(0, next_state[1])]
+        next_state = [min(self.height - 1, next_state[0]), min(self.width - 1, next_state[1])]
+        if next_state in self.cliff:
+            reward = self.rewards['cliff']
+            next_state = self.start_state
+        else:
+            reward = self.rewards['non-cliff']
+        return next_state, reward
+
+
+    def get_action_idx(self, action):
+        '''
+        Get index of action in action list
+
+        Params
+        ------
+        action: (int, int)
+            action
+        '''
+        return self.actions.index(action)
+
+
+def epsilon_greedy(grid_world, epsilon, Q, state):
+    '''
+    Choose action according to epsilon-greedy policy
+
+    Params:
+    -------
+    grid_world: GridWorld
+    epsilon: float
+    Q: np.ndarray
+        action-value function
+    state: [int, int]
+        current state
+
+    Return
+    ------
+    action: (int, int)
+    '''
     if np.random.binomial(1, epsilon) == 1:
-        action = ACTION_NAMES.index(np.random.choice(ACTION_NAMES))
+        action_idx = np.random.randint(len(grid_world.actions))
+        action = grid_world.actions[action_idx]
     else:
         values = Q[state[0], state[1], :]
-        action = np.random.choice([action_ for action_, value_ in enumerate(values) if value_ == np.max(values)])
+        action_idx = np.random.choice([action_ for action_, value_ 
+            in enumerate(values) if value_ == np.max(values)])
+        action = grid_world.actions[action_idx]
     return action
 
 
-def q_learning(Q, epsilon, alpha, gamma):
-    state = START_STATE
+def q_learning(Q, grid_world, epsilon, alpha, gamma):
+    '''
+    Q-learning
+
+    Params
+    ------
+    Q: np.ndarray
+        action-value function
+    grid_world: GridWorld
+    epsilon: float
+    alpha: float
+        step size
+    gamma: float
+        discount factor
+    '''
+    state = grid_world.start_state
     rewards = 0
 
-    while not is_terminal(state):
-        action = epsilon_greedy(epsilon, Q, state)
-        action_name = ACTION_NAMES[action]
-        next_state, reward = take_action(state, ACTIONS[action_name])
+    while not grid_world.is_terminal(state):
+        action = epsilon_greedy(grid_world, epsilon, Q, state)
+        next_state, reward = grid_world.take_action(state, action)
         rewards += reward
-        Q[state[0], state[1], action] += alpha * (reward + gamma * np.max(Q[next_state[0], next_state[1], :]) - Q[state[0], state[1], action])
+        action_idx = grid_world.get_action_idx(action)
+        Q[state[0], state[1], action_idx] += alpha * (reward + gamma * \
+            np.max(Q[next_state[0], next_state[1], :]) - Q[state[0], state[1], action_idx])
         state = next_state
 
     return rewards
 
 
-def sarsa(Q, epsilon, alpha, gamma):
-    state = START_STATE
-    action = epsilon_greedy(epsilon, Q, state)
+def sarsa(Q, grid_world, epsilon, alpha, gamma):
+    '''
+    Sarsa
+
+    Params
+    ------
+    Q: np.ndarray
+        action-value function
+    grid_world: GridWorld
+    epsilon: float
+    alpha: float
+        step size
+    gamma: float
+        discount factor
+    '''
+    state = grid_world.start_state
+    action = epsilon_greedy(grid_world, epsilon, Q, state)
     rewards = 0
 
-    while not is_terminal(state):
-        action_name = ACTION_NAMES[action]
-        next_state, reward = take_action(state, ACTIONS[action_name])
+    while not grid_world.is_terminal(state):
+        next_state, reward = grid_world.take_action(state, action)
         rewards += reward
-        next_action = epsilon_greedy(epsilon, Q, next_state)
-        Q[state[0], state[1], action] += alpha * (reward + gamma * Q[next_state[0], next_state[1], next_action]
-            - Q[state[0], state[1], action])
+        next_action = epsilon_greedy(grid_world, epsilon, Q, next_state)
+        action_idx = grid_world.get_action_idx(action)
+        next_action_idx = grid_world.get_action_idx(next_action)
+        Q[state[0], state[1], action_idx] += alpha * (reward + gamma * Q[next_state[0], \
+            next_state[1], next_action_idx] - Q[state[0], state[1], action_idx])
         state = next_state
         action = next_action
 
     return rewards
 
 
-def print_optimal_policy(Q):
-    for i in range(GRID_HEIGHT):
+def print_optimal_policy(Q, grid_world):
+    for i in range(grid_world.height):
         optimal_policy_row = []
-        for j in range(GRID_WIDTH):
-            if is_terminal([i, j]):
-                optimal_policy_row.append('G')
+        for j in range(grid_world.width):
+            if grid_world.is_terminal([i, j]):
+                optimal_policy_row.append('E')
                 continue
-            best_action = np.argmax(Q[i, j, :])
-            if ACTION_NAMES[best_action] == 'up':
+            best_action_idx = np.argmax(Q[i, j, :])
+            if best_action_idx == 0:
                 optimal_policy_row.append('U')
-            elif ACTION_NAMES[best_action] == 'down':
+            elif best_action_idx == 1:
                 optimal_policy_row.append('D')
-            elif ACTION_NAMES[best_action] == 'left':
-                optimal_policy_row.append('L')
-            elif ACTION_NAMES[best_action] == 'right':
+            elif best_action_idx == 2:
                 optimal_policy_row.append('R')
+            elif best_action_idx == 3:
+                optimal_policy_row.append('L')
         print(optimal_policy_row)
 
 
 if __name__ == '__main__':
-    runs = 50
-    episodes = 500
+    height = 4
+    width = 13
+    start_state = [3, 0]
+    end_state = [3, 12]
+    cliff = [[3, x] for x in range(1, 12)]
+    grid_world = GridWorld(height, width, start_state, end_state, cliff)
+    n_runs = 50
+    n_eps = 500
     epsilon = 0.1
     alpha = 0.5
     gamma = 1
-    Q = np.zeros((GRID_HEIGHT, GRID_WIDTH, len(ACTION_NAMES)))
-    rewards_q_learning = np.zeros((episodes, ))
-    rewards_sarsa = np.zeros((episodes, ))
+    Q = np.zeros((height, width, len(grid_world.actions)))
+    rewards_q_learning = np.zeros(n_eps)
+    rewards_sarsa = np.zeros(n_eps)
 
-    for _ in tqdm(range(runs)):
+    for _ in tqdm(range(n_runs)):
         Q_q_learning = Q.copy()
         Q_sarsa = Q.copy()
 
-        for ep in range(episodes):
-            rewards_q_learning[ep] += q_learning(Q_q_learning, epsilon, alpha, gamma)
-            rewards_sarsa[ep] += sarsa(Q_sarsa, epsilon, alpha, gamma)
+        for ep in range(n_eps):
+            rewards_q_learning[ep] += q_learning(Q_q_learning, grid_world, epsilon, alpha, gamma)
+            rewards_sarsa[ep] += sarsa(Q_sarsa, grid_world, epsilon, alpha, gamma)
 
-    rewards_q_learning /= runs
-    rewards_sarsa /= runs
+    rewards_q_learning /= n_runs
+    rewards_sarsa /= n_runs
 
     plt.plot(rewards_q_learning, label='Q-Learning')
     plt.plot(rewards_sarsa, label='Sarsa')
@@ -122,9 +215,9 @@ if __name__ == '__main__':
     plt.close()
 
     print('Q-learning\'s optimal policy:')
-    print_optimal_policy(Q_q_learning)
+    print_optimal_policy(Q_q_learning, grid_world)
     print('Sarsa\'s optimal policy:')
-    print_optimal_policy(Q_sarsa)
+    print_optimal_policy(Q_sarsa, grid_world)
 
 
 
