@@ -155,12 +155,9 @@ def n_step_temporal_difference(V, n, alpha, gamma, random_walk):
         if tau == T - 1:
             break
         state = next_state
-        
 
-def rmse():
-    '''
-    Calculate RMS error
-    '''
+
+if __name__ == '__main__':
     n_states = 19
     start_state = 10
     gamma = 1
@@ -192,8 +189,3 @@ def rmse():
     plt.legend()
     plt.savefig('./random_walk.png')
     plt.close()
-
-
-if __name__ == '__main__':
-    rmse()
-
