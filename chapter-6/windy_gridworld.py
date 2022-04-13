@@ -172,5 +172,3 @@ if __name__ == '__main__':
     plt.close()
 
     print_optimal_policy(Q, grid_world)
-
-    
