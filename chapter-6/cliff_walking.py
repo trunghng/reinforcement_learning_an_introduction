@@ -84,7 +84,7 @@ def epsilon_greedy(grid_world, epsilon, Q, state):
     ------
     action: (int, int)
     '''
-    if np.random.binomial(1, epsilon) == 1:
+    if np.random.binomial(1, epsilon):
         action_idx = np.random.randint(len(grid_world.actions))
         action = grid_world.actions[action_idx]
     else:
