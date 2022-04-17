@@ -7,6 +7,22 @@ class GridWorld:
 
 
     def __init__(self, height, width, start_state, goal_state, cliff):
+        '''
+        Initialization function
+
+        Params
+        ------
+        height: int
+            gridworld's height
+        width: int
+            gridworld's width
+        start_state: [int, int]
+            gridworld's start state
+        goal_state: [int, int]
+            gridworld's goal state
+        cliff: list<[int, int]>
+            gridworld's cliff region
+        '''
         self.height = height
         self.width = width
         self.start_state = start_state
