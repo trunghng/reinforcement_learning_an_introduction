@@ -6,11 +6,11 @@ from tqdm import tqdm
 class GridWorld:
 
 
-    def __init__(self, height, width, start_state, end_state, cliff):
+    def __init__(self, height, width, start_state, goal_state, cliff):
         self.height = height
         self.width = width
         self.start_state = start_state
-        self.end_state = end_state
+        self.goal_state = goal_state
         self.cliff = cliff
         self.actions = [(-1, 0), (1, 0), (0, 1), (0, -1)]
         self.rewards = {'cliff': -100, 'non-cliff': -1}
@@ -18,14 +18,14 @@ class GridWorld:
 
     def is_terminal(self, state):
         '''
-        Whether state @state is an end state
+        Whether state @state is the goal state
 
         Params
         ------
         state: [int, int]
             current state
         '''
-        return state == self.end_state
+        return state == self.goal_state
 
 
     def take_action(self, state, action):
@@ -163,7 +163,7 @@ def print_optimal_policy(Q, grid_world):
         optimal_policy_row = []
         for j in range(grid_world.width):
             if grid_world.is_terminal([i, j]):
-                optimal_policy_row.append('E')
+                optimal_policy_row.append('G')
                 continue
             best_action_idx = np.argmax(Q[i, j, :])
             if best_action_idx == 0:
@@ -181,9 +181,9 @@ if __name__ == '__main__':
     height = 4
     width = 13
     start_state = [3, 0]
-    end_state = [3, 12]
+    goal_state = [3, 12]
     cliff = [[3, x] for x in range(1, 12)]
-    grid_world = GridWorld(height, width, start_state, end_state, cliff)
+    grid_world = GridWorld(height, width, start_state, goal_state, cliff)
     n_runs = 50
     n_eps = 500
     epsilon = 0.1
