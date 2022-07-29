@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 
 class RandomWalk:
@@ -190,7 +190,7 @@ def random_policy(random_walk):
     return np.random.choice(random_walk.actions)
 
 
-class StateAggregation:
+class StateAggregationValueFunction:
     '''
     State Aggregation
     '''
@@ -264,13 +264,116 @@ class StateAggregation:
         return value_func
 
 
-def gradient_mc_state_aggregation(state_agg, random_walk, alpha, mu):
+class BasesValueFunction:
     '''
-    Gradient Monte Carlo with state aggregation
+    State features w/ bases
+    '''
+
+    def __init__(self, order, basis_type):
+        self.order = order
+        # additional basis for bias
+        self.w = np.zeros(order + 1)
+        self.basis_types = ['Polynomial', 'Fourier']
+        self.features = self.get_features(basis_type)
+
+
+    def get_features(self, basis_type):
+        '''
+        Get feature vector functions with 1-dim state
+
+        Params:
+        -------
+        bais_type: str
+            basis type
+
+        Return
+        ------
+        features: list
+            list of feature vector functions
+        '''
+        features = []
+        if basis_type == self.basis_types[0]:
+            for i in range(self.order + 1):
+                features.append(lambda s, i=i: pow(s, i))
+        elif basis_type == self.basis_types[1]:
+            for i in range(self.order + 1):
+                features.append(lambda s, i=i: np.cos(i * np.pi * s))
+        return features
+
+
+    def get_feature_vector(self, state):
+        '''
+        Get feature vector of state @state
+
+        Params
+        ------
+        state: int
+            current state
+
+        Return
+        ------
+        feature_vector: np.ndarray
+            feature vector
+        '''
+        feature_vector = np.asarray([x_i(state) for x_i in self.features])
+        return feature_vector
+
+
+    def get_grad(self, state, random_walk):
+        '''
+        Compute the gradient w.r.t @self.w at state @state
+        Since value function is approximated by a linear function, its gradient
+        w.r.t the weight @self.w is equal to feature vector @self.features
+
+        Params
+        ------
+        state: int
+            current state
+        n_states: int
+            number of states
+
+        Return
+        ------
+        grad: np.ndarray
+            gradient w.r.t @self.w at the current state
+        '''
+        state /= float(random_walk.n_states)
+        feature_vector = self.get_feature_vector(state)
+        grad = feature_vector
+        return grad
+
+
+    def get_value(self, state, random_walk):
+        '''
+        Get value function at state @state
+        value function is equal to dot product of its feature vector and weight
+        
+
+        Params
+        ------
+        state: int
+            current state
+        n_states: int
+            number of states
+
+        Return
+        ------
+        value_func: float
+            value function at state @state
+        '''
+        state /= float(random_walk.n_states)
+        feature_vector = self.get_feature_vector(state)
+        value_func = np.dot(self.w, feature_vector)
+        return value_func
+
+
+def gradient_mc(value_func, random_walk, alpha, mu=None):
+    '''
+    Gradient Monte Carlo
 
     Params
     ------
-    state_agg: StateAggregation
+    value_func
     random_walk: RandomWalk
     alpha: float
         step size
@@ -290,14 +393,15 @@ def gradient_mc_state_aggregation(state_agg, random_walk, alpha, mu):
     # since reward at every states except terminal ones is 0, and discount factor gamma = 1,
     # the return at each state is equal to the reward at the terminal state.
     for state in trajectory[:-1]:
-        state_agg.w += alpha * (reward - state_agg.get_value(state, random_walk)) \
-            * state_agg.get_grad(state)
-        mu[state] += 1
+        value_func.w += alpha * (reward - value_func.get_value(state, random_walk)) \
+            * value_func.get_grad(state, random_walk)
+        if mu is not None:
+            mu[state] += 1
 
 
 def gradient_mc_state_aggregation_plot(random_walk, true_value):
     '''
-    Plotting gradient MC w/ state aggregation
+    Plot gradient MC w/ state aggregation
 
     Params
     ------
@@ -309,10 +413,10 @@ def gradient_mc_state_aggregation_plot(random_walk, true_value):
     n_groups = 10
     n_eps = 100000
     mu = np.zeros(n_states + 2)
-    state_agg = StateAggregation(n_groups, random_walk.n_states)
+    state_agg = StateAggregationValueFunction(n_groups, random_walk.n_states)
 
-    for _ in tqdm(range(n_eps)):
-        gradient_mc_state_aggregation(state_agg, random_walk, alpha, mu)
+    for _ in trange(n_eps):
+        gradient_mc(state_agg, random_walk, alpha, mu)
 
     mu /= np.sum(mu)
     value_funcs = [state_agg.get_value(state, random_walk)
@@ -336,13 +440,13 @@ def gradient_mc_state_aggregation_plot(random_walk, true_value):
     plt.close()
 
 
-def n_step_semi_gradient_td(state_agg, random_walk, n, alpha, gamma):
+def n_step_semi_gradient_td(value_func, random_walk, n, alpha, gamma):
     '''
     n-step semi-gradient TD
 
     Params
     ------
-    state_agg: StateAggregation
+    value_func
     random_walk: RandomWalk
     n: int
         number of step
@@ -372,10 +476,10 @@ def n_step_semi_gradient_td(state_agg, random_walk, n, alpha, gamma):
             for i in range(tau + 1, min(tau + n, T) + 1):
                 G += np.power(gamma, i - tau - 1) * rewards[i]
             if tau + n < T:
-                G += np.power(gamma, n) * state_agg.get_value(states[tau + n], random_walk)
+                G += np.power(gamma, n) * value_func.get_value(states[tau + n], random_walk)
             if not random_walk.is_terminal(states[tau]):
-                state_agg.w += alpha * (G - state_agg.get_value(states[tau], random_walk)) * \
-                    state_agg.get_grad(states[tau])
+                value_func.w += alpha * (G - value_func.get_value(states[tau], random_walk)) * \
+                    value_func.get_grad(states[tau])
         t += 1
         if tau == T - 1:
             break
@@ -384,7 +488,7 @@ def n_step_semi_gradient_td(state_agg, random_walk, n, alpha, gamma):
 
 def semi_gradient_td_0_plot(random_walk, true_value):
     '''
-    Plotting semi-gradient TD(0)
+    Plot semi-gradient TD(0)
 
     Params
     ------
@@ -396,9 +500,9 @@ def semi_gradient_td_0_plot(random_walk, true_value):
     n_groups = 10
     n_eps = 100000
     gamma = 1
-    state_agg = StateAggregation(n_groups, random_walk.n_states)
+    state_agg = StateAggregationValueFunction(n_groups, random_walk.n_states)
 
-    for _ in tqdm(range(n_eps)):
+    for _ in trange(n_eps):
         n_step_semi_gradient_td(state_agg, random_walk, 1, alpha, gamma)
 
     value_funcs = [state_agg.get_value(state, random_walk)
@@ -415,7 +519,13 @@ def semi_gradient_td_0_plot(random_walk, true_value):
 
 def n_step_semi_gradient_td_plot(random_walk, true_value):
     '''
-    Plotting n-step semi-gradient TD
+    Plot n-step semi-gradient TD
+
+    Params
+    ------
+    random_walk: RandomWalk
+    true_value: np.ndarray
+        true values
     '''
     n_eps = 10
     n_runs = 100
@@ -427,9 +537,10 @@ def n_step_semi_gradient_td_plot(random_walk, true_value):
     errors = np.zeros((len(ns), len(alphas)))
     for n_i, n in enumerate(ns):
         for alpha_i, alpha in enumerate(alphas):
-            for _ in tqdm(range(n_runs)):
-                state_agg = StateAggregation(n_groups, random_walk.n_states)
-                for _ in range(n_eps):
+            print(f'n={n}, alpha={alpha}')
+            for _ in trange(n_runs):
+                state_agg = StateAggregationValueFunction(n_groups, random_walk.n_states)
+                for _ in trange(n_eps):
                     n_step_semi_gradient_td(state_agg, random_walk, n, alpha, gamma)
                     state_values = np.array([state_agg.get_value(state, random_walk) 
                         for state in random_walk.states])
@@ -457,6 +568,50 @@ def semi_gradient_td_plot(random_walk, true_value):
     plt.close()
 
 
+def gradient_mc_bases_plot(random_walk, true_value):
+    '''
+    Plot gradient Monte Carlo w/ Fourier and polynomial bases
+
+    Params
+    ------
+    random_walk: RandomWalk
+    true_value: np.ndarray
+        true values
+    '''
+    orders = [5, 10, 20]
+    n_runs = 1
+    n_eps = 5000
+
+    bases = [
+        {'method': 'Polynomial', 'alpha': 1e-4},
+        {'method': 'Fourier', 'alpha': 5e-5}
+    ]
+
+    errors = np.zeros((len(bases), len(orders), n_eps))
+    for i_basis, basis in enumerate(bases):
+        for i_order, order in enumerate(orders):
+            print(f'{basis["method"]} basis, order={order}')
+            for _ in range(n_runs):
+                value_func = BasesValueFunction(order, basis['method'])
+                for ep in trange(n_eps):
+                    gradient_mc(value_func, random_walk, basis['alpha'])
+                    state_values = np.array([value_func.get_value(state, random_walk) 
+                        for state in random_walk.states])
+                    rmse = np.sqrt(np.mean(np.power(state_values - true_value[1: -1], 2)))
+                    errors[i_basis, i_order, ep] += rmse
+
+    errors /= n_runs
+    for i_basis, basis in enumerate(bases):
+        for i_order, order in enumerate(orders):
+            plt.plot(errors[i_basis, i_order, :], label='%s basis, order = %d' % (basis['method'], order))
+    plt.xlabel('Episodes')
+    plt.ylabel('RMSE')
+    plt.legend()
+
+    plt.savefig('./gradient_mc_bases.png')
+    plt.close()
+
+
 if __name__ == '__main__':
     n_states = 1000
     start_state = 500
@@ -464,6 +619,7 @@ if __name__ == '__main__':
     random_walk = RandomWalk(n_states, start_state, transition_radius)
     true_value = get_true_value(random_walk)
 
-    gradient_mc_state_aggregation_plot(random_walk, true_value)
-    semi_gradient_td_plot(random_walk, true_value)
+    # gradient_mc_state_aggregation_plot(random_walk, true_value)
+    # semi_gradient_td_plot(random_walk, true_value)
+    gradient_mc_bases_plot(random_walk, true_value)
 
