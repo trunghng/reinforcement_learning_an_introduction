@@ -33,6 +33,9 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 #### Chapter 9: On-policy Prediction with Approximation
 - [x] Random walk - **Gradient Monte Carlo w/ State Aggregation**
 - [x] Random walk - **Semi-gradient TD**
-- [ ] Random walk - **Gradient Monte Carlo w/ Fourier basis & polynomial basis**
-- [ ] Square wave - **Linear function approximation based on Coarse Coding**
+- [x] Random walk - **Gradient Monte Carlo w/ Fourier basis & Polynomial basis**
+- [x] Random walk - **Gradient Monte Carlo based on Tile Coding**
+- [ ] Square wave - **Linear function approximation based on Coarse Coding**  
+#### Chapter 10: On-policy Control with Approximation
+- [ ] Mountain car
 (Updating)
