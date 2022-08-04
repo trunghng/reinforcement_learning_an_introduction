@@ -168,5 +168,5 @@ if __name__ == '__main__':
             plt.plot(axis_x, values_, label='feature width %.01f' % (value_function.feature_width))
         plt.legend(loc='upper right')
 
-    plt.savefig('./wave_function.png')
+    plt.savefig('./square_wave_function.png')
     plt.close()
