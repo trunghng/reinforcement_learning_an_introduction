@@ -709,7 +709,7 @@ def gradient_mc_tilings(random_walk, true_value):
     plt.ylabel('RMSE')
     plt.legend()
 
-    plt.savefig('./gradient_tile_coding.png')
+    plt.savefig('./gradient_mc_tile_coding.png')
     plt.close()
 
 
