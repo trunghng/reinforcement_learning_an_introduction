@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm, trange
-
+import abc
+from abc import ABC, abstractmethod
 
 class RandomWalk:
     '''
@@ -190,7 +191,18 @@ def random_policy(random_walk):
     return np.random.choice(random_walk.actions)
 
 
-class StateAggregationValueFunction:
+class ValueFunction(ABC):
+
+    @abstractmethod
+    def get_value(self, state):
+        pass
+
+    @abstractmethod
+    def update_weights(self, state, delta):
+        pass
+
+
+class StateAggregationValueFunction(ValueFunction):
     '''
     State Aggregation
     '''
@@ -239,7 +251,7 @@ class StateAggregationValueFunction:
         return grad
 
 
-    def get_value(self, state, random_walk):
+    def get_value(self, state):
         '''
         Get value function at state @state
         States within a group share the same value function, which is a component of w
@@ -248,36 +260,37 @@ class StateAggregationValueFunction:
         ------
         state: int
             current state
-        random_walk: RandomWalk
-            random walk
 
         Return
         ------
         value_func: float
             value function at state @state
         '''
-        if random_walk.is_terminal(state):
-            value_func = 0
-        else:
-            group_idx = self.get_group(state)
-            value_func = self.w[group_idx]
+        group_idx = self.get_group(state)
+        value_func = self.w[group_idx]
         return value_func
 
 
-class BasesValueFunction:
+    def update_weights(self, state, delta):
+        grad = self.get_grad(state)
+        self.w += delta * grad
+
+
+class BasesValueFunction(ValueFunction):
     '''
     State features w/ bases
     '''
 
-    def __init__(self, order, basis_type):
+    def __init__(self, order, basis_type, n_states):
         self.order = order
         # additional basis for bias
         self.w = np.zeros(order + 1)
         self.basis_types = ['Polynomial', 'Fourier']
-        self.features = self.get_features(basis_type)
+        self.n_states = n_states
+        self.features = self._get_features(basis_type)
 
 
-    def get_features(self, basis_type):
+    def _get_features(self, basis_type):
         '''
         Get feature vector functions with 1-dim state
 
@@ -319,7 +332,7 @@ class BasesValueFunction:
         return feature_vector
 
 
-    def get_grad(self, state, random_walk):
+    def get_grad(self, state):
         '''
         Compute the gradient w.r.t @self.w at state @state
         Since value function is approximated by a linear function, its gradient
@@ -329,21 +342,19 @@ class BasesValueFunction:
         ------
         state: int
             current state
-        n_states: int
-            number of states
 
         Return
         ------
         grad: np.ndarray
             gradient w.r.t @self.w at the current state
         '''
-        state /= float(random_walk.n_states)
+        state /= float(self.n_states)
         feature_vector = self.get_feature_vector(state)
         grad = feature_vector
         return grad
 
 
-    def get_value(self, state, random_walk):
+    def get_value(self, state):
         '''
         Get value function at state @state
         value function is equal to dot product of its feature vector and weight
@@ -353,18 +364,97 @@ class BasesValueFunction:
         ------
         state: int
             current state
-        n_states: int
-            number of states
 
         Return
         ------
         value_func: float
             value function at state @state
         '''
-        state /= float(random_walk.n_states)
+        state /= float(self.n_states)
         feature_vector = self.get_feature_vector(state)
         value_func = np.dot(self.w, feature_vector)
         return value_func
+
+
+    def update_weights(self, state, delta):
+        grad = self.get_grad(state)
+        self.w += delta * grad
+
+
+class TilingValueFunction(ValueFunction):
+
+    def __init__(self, n_states, n_tilings, tile_width, tiling_offset):
+        '''
+        Params:
+        ------
+        n_state: int
+            number of states
+        n_tilings: int
+            number of tilings
+        tile_width: int
+            tile width
+        tiling_offset: int 
+        '''
+        self.n_tilings = n_tilings
+        self.tile_width = tile_width
+        self.tiling_offset = tiling_offset
+
+        # we need 1 more tile for each tiling to make sure that 
+        # each state is covered by the same number of tiles
+        # within an interval with length = @self.tiling_size, all
+        # states activate the same tiles, have the same feature 
+        # representation, and therefore the same value function.
+        self.tiling_size = n_states // tile_width + 1
+        self.w = np.zeros((n_tilings, self.tiling_size))
+
+
+    def get_active_tile_idxs(self, state):
+        '''
+        Get active tile indices
+
+        Params
+        ------
+        state: int
+            current state
+        '''
+        active_tile_idxs = []
+
+        for tiling_idx in range(self.n_tilings):
+            tile_idx = (state - self.tiling_offset * tiling_idx - 1) \
+                    // self.tile_width + 1
+            active_tile_idxs.append(tile_idx)
+                
+        return active_tile_idxs
+
+
+    def get_value(self, state):
+        '''
+        Get value function at state @state
+
+        state: int
+            current state
+        '''
+        value = 0
+        active_tile_idxs = self.get_active_tile_idxs(state)
+        for tiling_idx, tile_idx in enumerate(active_tile_idxs):
+            value += self.w[tiling_idx, tile_idx]
+
+        return value
+
+
+    def update_weights(self, state, delta):
+        '''
+        Params
+        ------
+        state: int
+            current state
+        delta: float
+        '''
+        active_tile_idxs = self.get_active_tile_idxs(state)
+        delta /= self.n_tilings
+
+        for tiling_idx in range(self.n_tilings):
+            self.w[tiling_idx, active_tile_idxs[tiling_idx]] += delta
 
 
 def gradient_mc(value_func, random_walk, alpha, mu=None):
@@ -393,8 +483,12 @@ def gradient_mc(value_func, random_walk, alpha, mu=None):
     # since reward at every states except terminal ones is 0, and discount factor gamma = 1,
     # the return at each state is equal to the reward at the terminal state.
     for state in trajectory[:-1]:
-        value_func.w += alpha * (reward - value_func.get_value(state, random_walk)) \
-            * value_func.get_grad(state, random_walk)
+        if random_walk.is_terminal(state):
+            value = 0
+        else:
+            value = value_func.get_value(state)
+        delta = alpha * (reward - value)
+        value_func.update_weights(state, delta)
         if mu is not None:
             mu[state] += 1
 
@@ -419,8 +513,7 @@ def gradient_mc_state_aggregation_plot(random_walk, true_value):
         gradient_mc(state_agg, random_walk, alpha, mu)
 
     mu /= np.sum(mu)
-    value_funcs = [state_agg.get_value(state, random_walk)
-        for state in random_walk.states]
+    value_funcs = [state_agg.get_value(state) for state in random_walk.states]
 
     fig, ax1 = plt.subplots()
     value_func_plot = ax1.plot(random_walk.states, value_funcs, 
@@ -476,10 +569,18 @@ def n_step_semi_gradient_td(value_func, random_walk, n, alpha, gamma):
             for i in range(tau + 1, min(tau + n, T) + 1):
                 G += np.power(gamma, i - tau - 1) * rewards[i]
             if tau + n < T:
-                G += np.power(gamma, n) * value_func.get_value(states[tau + n], random_walk)
+                if random_walk.is_terminal(states[tau + n]):
+                    value = 0
+                else:
+                    value = value_func.get_value(states[tau + n])
+                G += np.power(gamma, n) * value
             if not random_walk.is_terminal(states[tau]):
-                value_func.w += alpha * (G - value_func.get_value(states[tau], random_walk)) * \
-                    value_func.get_grad(states[tau])
+                if random_walk.is_terminal(states[tau]):
+                    value = 0
+                else:
+                    value = value_func.get_value(states[tau])
+                delta = alpha * (G - value)
+                value_func.update_weights(states[tau], delta)
         t += 1
         if tau == T - 1:
             break
@@ -505,8 +606,7 @@ def semi_gradient_td_0_plot(random_walk, true_value):
     for _ in trange(n_eps):
         n_step_semi_gradient_td(state_agg, random_walk, 1, alpha, gamma)
 
-    value_funcs = [state_agg.get_value(state, random_walk)
-        for state in random_walk.states]
+    value_funcs = [state_agg.get_value(state) for state in random_walk.states]
 
     plt.plot(random_walk.states, value_funcs, 
         label=r'Approximate TD value $\hat{v}$', color='blue')
@@ -542,7 +642,7 @@ def n_step_semi_gradient_td_plot(random_walk, true_value):
                 state_agg = StateAggregationValueFunction(n_groups, random_walk.n_states)
                 for _ in trange(n_eps):
                     n_step_semi_gradient_td(state_agg, random_walk, n, alpha, gamma)
-                    state_values = np.array([state_agg.get_value(state, random_walk) 
+                    state_values = np.array([state_agg.get_value(state)
                         for state in random_walk.states])
                     rmse = np.sqrt(np.sum(np.power(state_values - true_value[1: -1], 2) 
                         / random_walk.n_states))
@@ -565,6 +665,51 @@ def semi_gradient_td_plot(random_walk, true_value):
     plt.subplot(122)
     n_step_semi_gradient_td_plot(random_walk, true_value)
     plt.savefig('./semi_gradient_td.png')
+    plt.close()
+
+
+def gradient_mc_tilings(random_walk, true_value):
+    '''
+    Plot gradient Monte Carlo w/ single and multiple tilings
+    The single tiling method is basically state aggregation.
+
+    Params
+    ------
+    random_walk: RandomWalk
+    true_value: np.ndarray
+        true values
+    '''
+    n_runs = 1
+    n_eps = 5000
+    n_tilings = 50
+    tile_width = 200
+    tiling_offset = 4
+
+    plot_labels = ['state aggregation (one tiling)', 'tile coding (50 tilings)']
+
+    errors = np.zeros((len(plot_labels), n_eps))
+
+    for _ in range(n_runs):
+        value_functions = [
+            StateAggregationValueFunction(random_walk.n_states // tile_width, random_walk.n_states), 
+            TilingValueFunction(random_walk.n_states, n_tilings, tile_width, tiling_offset)
+        ]
+
+        for i in range(len(value_functions)):
+            for ep in trange(n_eps):
+                alpha = 1.0 / (ep + 1)
+                gradient_mc(value_functions[i], random_walk, alpha)
+                values = [value_functions[i].get_value(state) for state in random_walk.states]
+                errors[i][ep] += np.sqrt(np.mean(np.power(true_value[1: -1] - values, 2)))
+
+    errors /= n_runs
+    for i in range(len(plot_labels)):
+        plt.plot(errors[i], label=plot_labels[i])
+    plt.xlabel('Episodes')
+    plt.ylabel('RMSE')
+    plt.legend()
+
+    plt.savefig('./gradient_tile_coding.png')
     plt.close()
 
 
@@ -592,10 +737,10 @@ def gradient_mc_bases_plot(random_walk, true_value):
         for i_order, order in enumerate(orders):
             print(f'{basis["method"]} basis, order={order}')
             for _ in range(n_runs):
-                value_func = BasesValueFunction(order, basis['method'])
+                value_func = BasesValueFunction(order, basis['method'], random_walk.n_states)
                 for ep in trange(n_eps):
                     gradient_mc(value_func, random_walk, basis['alpha'])
-                    state_values = np.array([value_func.get_value(state, random_walk) 
+                    state_values = np.array([value_func.get_value(state) 
                         for state in random_walk.states])
                     rmse = np.sqrt(np.mean(np.power(state_values - true_value[1: -1], 2)))
                     errors[i_basis, i_order, ep] += rmse
@@ -621,5 +766,6 @@ if __name__ == '__main__':
 
     # gradient_mc_state_aggregation_plot(random_walk, true_value)
     # semi_gradient_td_plot(random_walk, true_value)
-    gradient_mc_bases_plot(random_walk, true_value)
-
+    gradient_mc_tilings(random_walk, true_value)
+    # gradient_mc_bases_plot(random_walk, true_value)
+    

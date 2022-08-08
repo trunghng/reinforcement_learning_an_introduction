@@ -31,11 +31,12 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [x] Mazes - **Dyna-Q**, **Prioritized Sweeping**
 - [x] Trajectory Sampling
 #### Chapter 9: On-policy Prediction with Approximation
-- [x] Random walk - **Gradient Monte Carlo w/ State Aggregation**
-- [x] Random walk - **Semi-gradient TD**
-- [x] Random walk - **Gradient Monte Carlo w/ Fourier basis & Polynomial basis**
-- [ ] Random walk - **Gradient Monte Carlo based on Tile Coding**
-- [x] Square wave - **Linear function approximation based on Coarse Coding**  
+- [x] Random Walk - **Gradient Monte Carlo w/ State Aggregation**
+- [x] Random Walk - **Semi-gradient TD**
+- [x] Random Walk - **Gradient Monte Carlo w/ Fourier basis & Polynomial basis**
+- [x] Random Walk - **Gradient Monte Carlo w/ Tile Coding**
+- [x] Square Wave - **Linear function approximation based on Coarse Coding**  
 #### Chapter 10: On-policy Control with Approximation
-- [ ] Mountain car
+- [ ] Mountain Car - **Episodic Semi-gradient Sarsa**
+- [ ] Access Control - 
 (Updating)
