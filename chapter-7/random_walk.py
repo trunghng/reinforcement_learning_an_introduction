@@ -125,6 +125,8 @@ def n_step_temporal_difference(V, n, alpha, gamma, random_walk):
         number of steps
     alpha: float
         step size
+    gamma: float
+        discount factor
     random_walk: RandomWalk
     '''
     state = random_walk.start_state
