@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm, trange
+from tqdm import trange
 from abc import ABC, abstractmethod
 
 
 class RandomWalk:
     '''
-    Random walk environment
+    Random walk env
     '''
 
     def __init__(self, n_states, start_state):
@@ -89,6 +89,14 @@ class ValueFunction(ABC):
         pass
 
 
+    def get_grad(self, state):
+        pass
+
+
+    def get_feature_vector(self, state):
+        pass
+
+
     @abstractmethod
     def update_weights(self, state, delta):
         pass
@@ -106,10 +114,31 @@ class LambdaReturnValueFunction(ValueFunction):
 
 
     def get_value(self, state):
-        return self.w[state]
+        '''
+        Get value of state @state
+
+        Params
+        ------
+        state: int
+            current state
+
+        Return
+        ------
+        value: float
+            value of the current state
+        '''
+        value = self.w[state]
+        return value
 
 
     def update_weights(self, state, delta):
+        '''
+        Update weight vector @self.w
+
+        Params
+        ------
+        delta: float
+        '''
         self.w[state] += delta
 
 
@@ -120,16 +149,71 @@ class TDLambdaValueFunction(ValueFunction):
 
 
     def get_value(self, state):
-        return self.w[state]
+        '''
+        Get value of state @state
+
+        Params
+        ------
+        state: int
+            current state
+
+        Return
+        ------
+        value: float
+            value of the current state
+        '''
+        value = self.w[state]
+        return value
 
 
-    def get_grad(self, state):
+    def get_feature_vector(self, state):
+        '''
+        Get feature vector of state @state
+
+        Params
+        ------
+        state: int
+            current state
+
+        Return
+        ------
+        feature_vector: np.ndarray
+            feature vector of the current state
+        '''
         feature_vector = np.zeros(self.w.shape)
         feature_vector[state] = 1
         return feature_vector
 
 
+    def get_grad(self, state):
+        '''
+        Get gradient w.r.t @self.w at state @state
+        which is the feature  vector @self.x since 
+        using linear func approx
+
+        Params
+        ------
+        state: int
+            current state
+
+        Return
+        ------
+        grad: np.ndarray
+            gradient
+        '''
+        feature_vector = self.get_feature_vector(state)
+        grad = feature_vector
+        return grad
+
+
     def update_weights(self, delta):
+        '''
+        Update weight vector @self.w
+
+        Params
+        ------
+        delta: float
+        '''
         self.w += delta
 
 
@@ -140,10 +224,71 @@ class TrueOnlineTDLambdaValueFunction(ValueFunction):
 
 
     def get_value(self, state):
-        return self.w[state]
+        '''
+        Get value of state @state
+
+        Params
+        ------
+        state: int
+            current state
+
+        Return
+        ------
+        value: float
+            value of the current state
+        '''
+        value = self.w[state]
+        return value
+
+
+    def get_feature_vector(self, state):
+        '''
+        Get feature vector of state @state
+
+        Params
+        ------
+        state: int
+            current state
+
+        Return
+        ------
+        feature_vector: np.ndarray
+            feature vector of the current state
+        '''
+        feature_vector = np.zeros(self.w.shape)
+        feature_vector[state] = 1
+        return feature_vector
+
+
+    def get_grad(self, state):
+        '''
+        Get gradient w.r.t @self.w at state @state
+        which is the feature  vector @self.x since 
+        using linear func approx
+
+        Params
+        ------
+        state: int
+            current state
+
+        Return
+        ------
+        grad: np.ndarray
+            gradient
+        '''
+        feature_vector = self.get_feature_vector(state)
+        grad = feature_vector
+        return grad
 
 
     def update_weights(self, delta):
+        '''
+        Update weight vector @self.w
+
+        Params
+        ------
+        delta: float
+        '''
         self.w += delta
 
 
@@ -156,6 +301,11 @@ def get_true_value(random_walk, gamma):
     random_walk: RandomWalk
     gamma: float
         discount factor
+
+    Return
+    ------
+    true_value: np.ndarray
+        true value off all of the states
     '''
     P = np.zeros((random_walk.n_states, random_walk.n_states))
     r = np.zeros((random_walk.n_states + 2, ))
@@ -194,8 +344,14 @@ def random_policy(random_walk):
     Params
     ------
     random_walk: RandomWalk
+
+    Return
+    ------
+    action: int
+        chosen action
     '''
-    return np.random.choice(random_walk.actions)
+    action = np.random.choice(random_walk.actions)
+    return action
 
 
 def offline_lambda_return(value_function, lambda_, alpha, gamma, random_walk):
@@ -260,7 +416,7 @@ def td_lambda(value_function, lambda_, alpha, gamma, random_walk):
     random_walk: RandomWalk
     '''
     state = random_walk.start_state
-    eligible_trace = np.zeros(random_walk.n_states + 2)
+    eligible_trace = np.zeros(value_function.w.shape)
 
     while not random_walk.is_terminal(state):
         action = random_policy(random_walk)
@@ -272,9 +428,9 @@ def td_lambda(value_function, lambda_, alpha, gamma, random_walk):
         state = next_state
 
 
-def true_online_td_lambda_return(value_function, lambda_, alpha, gamma, random_walk):
+def true_online_td_lambda(value_function, lambda_, alpha, gamma, random_walk):
     '''
-    True online lambda-return algorithm
+    True online TD(lambda) algorithm
 
     Params
     ------
@@ -288,7 +444,26 @@ def true_online_td_lambda_return(value_function, lambda_, alpha, gamma, random_w
         discount factor
     random_walk: RandomWalk
     '''
-    pass
+    state = random_walk.start_state
+    
+    dutch_trace = np.zeros(value_function.w.shape)
+    zero_vector = np.zeros(value_function.w.shape)
+    old_state_value = 0
+
+    while not random_walk.is_terminal(state):
+        action = random_policy(random_walk)
+        next_state, reward = random_walk.take_action(state, action)
+        state_value = value_function.get_value(state)
+        state_feature_vector = value_function.get_feature_vector(state)
+        next_state_value = value_function.get_value(next_state)
+        td_error = reward + gamma * next_state_value - state_value
+        dutch_trace = gamma * lambda_ * dutch_trace + (1 - alpha * gamma * lambda_ \
+            * dutch_trace.dot(state_feature_vector)) * state_feature_vector
+        delta = alpha * ((td_error + state_value - old_state_value) * dutch_trace \
+            - (state_value - old_state_value) * state_feature_vector)
+        value_function.update_weights(delta)
+        state = next_state
+        old_state_value = next_state_value
 
 
 if __name__ == '__main__':
@@ -339,18 +514,18 @@ if __name__ == '__main__':
             'step_sizes': offline_lambd_return_alphas,
             'img_path': './offline-lambda-return.png'
         },
-        # {
-        #     'func': td_lambda,
-        #     'value_function': TDLambdaValueFunction,
-        #     'step_sizes': td_lambda_alphas,
-        #     'img_path': './td-lambda.png'
-        # },
-        # {
-        #     'func': true_online_td_lambda,
-        #     'value_function': TrueOnlineTDLambdaValueFunction,
-        #     'step_sizes': true_online_td_lambda_alphas,
-        #     'img_path': './true-online-td-lambda.png'
-        # }
+        {
+            'func': td_lambda,
+            'value_function': TDLambdaValueFunction,
+            'step_sizes': td_lambda_alphas,
+            'img_path': './td-lambda.png'
+        },
+        {
+            'func': true_online_td_lambda,
+            'value_function': TrueOnlineTDLambdaValueFunction,
+            'step_sizes': true_online_td_lambda_alphas,
+            'img_path': './true-online-td-lambda.png'
+        }
     ]
 
     errors = []
@@ -365,7 +540,6 @@ if __name__ == '__main__':
         for _ in trange(runs):
             for lambda_idx in range(len(lambdas)):
                 for alpha_idx, alpha in enumerate(alphas[lambda_idx]):
-                    # print(f'alpha={alpha}, lambda={lambdas[lambda_idx]}')   
                     value_function = value_func(n_states)
 
                     for ep in range(episodes):

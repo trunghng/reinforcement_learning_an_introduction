@@ -110,7 +110,7 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [x] Random Walk - **TD(lambda)**
 	- Code: [link](./chapter-12/random_walk.py)
 	- Result: [link](./chapter-12/td-lambda.png)
-- [ ] Random Walk - **True online TD(lambda)**
+- [x] Random Walk - **True online TD(lambda)**
 	- Code: [link](./chapter-12/random_walk.py)
 	- Result: 
 - [ ] Mountain Car - **Sarsa(lambda) w/ replacing traces**
