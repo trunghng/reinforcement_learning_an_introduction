@@ -123,7 +123,7 @@ def policy_iteration(theta):
             ax.set_xlabel('#Cars at second location', fontsize=8)
             ax.set_ylabel('#Cars at first location', fontsize=8)
 
-            plt.show()
+            plt.savefig('./jackscar.png')
             break
 
         iter_count += 1

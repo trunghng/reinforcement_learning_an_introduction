@@ -14,7 +14,7 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 	- Result: shown on the command prompt after running the code
 - [x] Jack's Car Rental - **Policy Iteration**
 	- Code: [view](./chapter-4/jackscar.py)
-	- Result: 
+	- Result: [view](./chapter-4/jackscar.png)
 - [x] Gambler's Problem - **Value Iteration**
 	- Code: [view](./chapter-4/gambler.py)
 	- Result: [view](./chapter-4/gambler.png)
