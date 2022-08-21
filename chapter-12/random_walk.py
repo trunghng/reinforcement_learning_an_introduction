@@ -123,6 +123,26 @@ class TDLambdaValueFunction(ValueFunction):
         return self.w[state]
 
 
+    def get_grad(self, state):
+        feature_vector = np.zeros(self.w.shape)
+        feature_vector[state] = 1
+        return feature_vector
+
+
+    def update_weights(self, delta):
+        self.w += delta
+
+
+class TrueOnlineTDLambdaValueFunction(ValueFunction):
+
+    def __init__(self, n_states):
+        super().__init__(n_states)
+
+
+    def get_value(self, state):
+        return self.w[state]
+
+
     def update_weights(self, delta):
         self.w += delta
 
@@ -169,7 +189,7 @@ def get_true_value(random_walk, gamma):
 
 def random_policy(random_walk):
     '''
-    Choose an action randomly
+    Policy choosing actions randomly
 
     Params
     ------
@@ -180,7 +200,7 @@ def random_policy(random_walk):
 
 def offline_lambda_return(value_function, lambda_, alpha, gamma, random_walk):
     '''
-    Offline lambda-return
+    Offline lambda-return algorithm
 
     Params
     ------
@@ -223,9 +243,9 @@ def offline_lambda_return(value_function, lambda_, alpha, gamma, random_walk):
             break
 
 
-def online_lambda_return(value_function, lambda_, alpha, gamma, random_walk):
+def td_lambda(value_function, lambda_, alpha, gamma, random_walk):
     '''
-    Online lambda-return
+    TD(lambda) algorithm
 
     Params
     ------
@@ -242,17 +262,19 @@ def online_lambda_return(value_function, lambda_, alpha, gamma, random_walk):
     state = random_walk.start_state
     eligible_trace = np.zeros(random_walk.n_states + 2)
 
-    while True:
+    while not random_walk.is_terminal(state):
         action = random_policy(random_walk)
         next_state, reward = random_walk.take_action(state, action)
-        eligible_trace = gamma * lambda_ * eligible_trace + value_function.get_value(state)
+        eligible_trace = gamma * lambda_ * eligible_trace + value_function.get_grad(state)
         td_error = reward + gamma * value_function.get_value(next_state) - value_function.get_value(state)
         delta = alpha * td_error * eligible_trace
+        value_function.update_weights(delta)
+        state = next_state
 
 
-def semi_gradient_td_lambda(value_function, lambda_, alpha, gamma, random_walk):
+def true_online_td_lambda_return(value_function, lambda_, alpha, gamma, random_walk):
     '''
-    Semi-gradient TD(lambda)
+    True online lambda-return algorithm
 
     Params
     ------
@@ -279,47 +301,77 @@ if __name__ == '__main__':
     episodes = 10
     runs = 50
     lambdas = [0, 0.4, 0.8, 0.9, 0.95, 0.975, 0.99, 1]
-    alphas = [np.arange(0, 1.1, 0.1),
-              np.arange(0, 1.1, 0.1),
-              np.arange(0, 1.1, 0.1),
-              np.arange(0, 1.1, 0.1),
-              np.arange(0, 1.1, 0.1),
-              np.arange(0, 0.55, 0.05),
-              np.arange(0, 0.22, 0.02),
-              np.arange(0, 0.11, 0.01)]
+    offline_lambd_return_alphas = [
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 0.55, 0.05),
+        np.arange(0, 0.22, 0.02),
+        np.arange(0, 0.11, 0.01)
+    ]
+    td_lambda_alphas = [
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 0.99, 0.09),
+        np.arange(0, 0.55, 0.05),
+        np.arange(0, 0.33, 0.03),
+        np.arange(0, 0.22, 0.02),
+        np.arange(0, 0.11, 0.01),
+        np.arange(0, 0.044, 0.004)
+    ]
+    true_online_td_lambda_alphas = [
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 1.1, 0.1),
+        np.arange(0, 0.88, 0.08),
+        np.arange(0, 0.44, 0.04),
+        np.arange(0, 0.11, 0.01)
+    ]
 
     methods = [
         {
-            'name': r'Offline $\lambda$-return',
-            'bootstrapping_param': lambdas,
-            'bootstrapping_param_name': 'lambda',
             'func': offline_lambda_return,
-            'value_function': LambdaReturnValueFunction
-        }
+            'value_function': LambdaReturnValueFunction,
+            'step_sizes': offline_lambd_return_alphas,
+            'img_path': './offline-lambda-return.png'
+        },
+        # {
+        #     'func': td_lambda,
+        #     'value_function': TDLambdaValueFunction,
+        #     'step_sizes': td_lambda_alphas,
+        #     'img_path': './td-lambda.png'
+        # },
+        # {
+        #     'func': true_online_td_lambda,
+        #     'value_function': TrueOnlineTDLambdaValueFunction,
+        #     'step_sizes': true_online_td_lambda_alphas,
+        #     'img_path': './true-online-td-lambda.png'
+        # }
     ]
 
     errors = []
 
     for method_idx in range(len(methods)):
-        method_name = methods[method_idx]['name']
-        bootstrapping_params = methods[method_idx]['bootstrapping_param']
-        bootstrapping_param_name = methods[method_idx]['bootstrapping_param_name']
         func = methods[method_idx]['func']
+        value_func = methods[method_idx]['value_function']
+        alphas = methods[method_idx]['step_sizes']
 
-        # error = np.zeros((len(bootstrapping_params), len(alphas)))
         error = [np.zeros(len(alphas_)) for alphas_ in alphas]
 
         for _ in trange(runs):
-            for param_idx in range(len(bootstrapping_params)):
-                for alpha_idx, alpha in enumerate(alphas[param_idx]):
-                    print(f'alpha={alpha}, {bootstrapping_param_name}={bootstrapping_params[param_idx]}')   
-                    value_function = methods[method_idx]['value_function'](n_states)
+            for lambda_idx in range(len(lambdas)):
+                for alpha_idx, alpha in enumerate(alphas[lambda_idx]):
+                    # print(f'alpha={alpha}, lambda={lambdas[lambda_idx]}')   
+                    value_function = value_func(n_states)
 
                     for ep in range(episodes):
-                        func(value_function, bootstrapping_params[param_idx], 
-                            alpha, gamma, random_walk)
+                        func(value_function, lambdas[lambda_idx], alpha, gamma, random_walk)
                         values = [value_function.get_value(state) for state in random_walk.states]
-                        error[param_idx][alpha_idx] += np.sqrt(np.mean(np.power
+                        error[lambda_idx][alpha_idx] += np.sqrt(np.mean(np.power
                             (values - true_value[1: -1], 2)))
 
         errors.append(error)
@@ -329,12 +381,11 @@ if __name__ == '__main__':
             error /= episodes * runs
 
     for method_idx in range(len(methods)):
-        for param_idx in range(len(methods[method_idx]['bootstrapping_param'])):
-            plt.plot(alphas[param_idx], errors[method_idx][param_idx], 
-                label=methods[method_idx]['bootstrapping_param_name'] + ' = ' 
-                + str(methods[method_idx]['bootstrapping_param'][param_idx]))
-    plt.xlabel('alpha')
-    plt.ylabel('RMS error')
-    plt.legend()
-    plt.savefig('./random_walk.png')
+        for lambda_idx in range(len(lambdas)):
+            plt.plot(alphas[lambda_idx], errors[method_idx][lambda_idx], 
+                label= r'$\lambda$ = ' + str(lambdas[lambda_idx]))
+        plt.xlabel('alpha')
+        plt.ylabel('RMS error')
+        plt.legend(loc='upper right')
+        plt.savefig(methods[method_idx]['img_path'])
     plt.close()
