@@ -51,6 +51,11 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 	- Code: [view](./chapter-6/cliff_walking.py)
 	- Result: [view](./chapter-6/cliff_walking.png)
 - [ ] Cliff Walking - **Expected Sarsa**
+	- Code: [view](./chapter-6/cliff_walking.py)
+	- Result: 
+- [x] Moutain Car - **Q-Learning**
+	- Code: [view](./chapter-6/mountain_car.py)
+	- Result: [view](./chapter-6/mountain_car.png)
 #### Chapter 7: n-step Bootstrapping
 - [x] Random Walk - **n-step TD**
 	- Code: [view](./chapter-7/random_walk.py)
