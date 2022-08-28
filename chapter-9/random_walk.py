@@ -198,7 +198,7 @@ class ValueFunction(ABC):
         pass
 
     @abstractmethod
-    def update_weights(self, state, delta):
+    def learn(self, state, delta):
         pass
 
 
@@ -271,9 +271,19 @@ class StateAggregationValueFunction(ValueFunction):
         return value_func
 
 
-    def update_weights(self, state, delta):
+    def learn(self, state, error):
+        '''
+        Update weight vector
+
+        Params
+        ------
+        state: int
+            current state
+        error: float
+            update amount
+        '''
         grad = self.get_grad(state)
-        self.w += delta * grad
+        self.w += error * grad
 
 
 class BasesValueFunction(ValueFunction):
@@ -376,7 +386,7 @@ class BasesValueFunction(ValueFunction):
         return value_func
 
 
-    def update_weights(self, state, delta):
+    def learn(self, state, delta):
         grad = self.get_grad(state)
         self.w += delta * grad
 
@@ -408,7 +418,7 @@ class TilingValueFunction(ValueFunction):
         self.w = np.zeros((n_tilings, self.tiling_size))
 
 
-    def get_active_tile_idxs(self, state):
+    def get_active_tiles(self, state):
         '''
         Get active tile indices
 
@@ -417,44 +427,49 @@ class TilingValueFunction(ValueFunction):
         state: int
             current state
         '''
-        active_tile_idxs = []
+        active_tiles = []
 
         for tiling_idx in range(self.n_tilings):
             tile_idx = (state - self.tiling_offset * tiling_idx - 1) \
                     // self.tile_width + 1
-            active_tile_idxs.append(tile_idx)
+            active_tiles.append(tile_idx)
                 
-        return active_tile_idxs
+        return active_tiles
 
 
     def get_value(self, state):
         '''
         Get value function at state @state
 
+        Params
+        ------
         state: int
             current state
         '''
         value = 0
-        active_tile_idxs = self.get_active_tile_idxs(state)
-        for tiling_idx, tile_idx in enumerate(active_tile_idxs):
+        active_tiles = self.get_active_tiles(state)
+        for tiling_idx, tile_idx in enumerate(active_tiles):
             value += self.w[tiling_idx, tile_idx]
 
         return value
 
 
-    def update_weights(self, state, delta):
+    def learn(self, state, error):
         '''
+        Update weight vector
+
         Params
         ------
         state: int
             current state
-        delta: float
+        error: float
+            update amount
         '''
-        active_tile_idxs = self.get_active_tile_idxs(state)
-        delta /= self.n_tilings
+        active_tiles = self.get_active_tiles(state)
+        error /= self.n_tilings
 
         for tiling_idx in range(self.n_tilings):
-            self.w[tiling_idx, active_tile_idxs[tiling_idx]] += delta
+            self.w[tiling_idx, active_tiles[tiling_idx]] += delta
 
 
 def gradient_mc(value_func, random_walk, alpha, mu=None):
@@ -488,7 +503,7 @@ def gradient_mc(value_func, random_walk, alpha, mu=None):
         else:
             value = value_func.get_value(state)
         delta = alpha * (reward - value)
-        value_func.update_weights(state, delta)
+        value_func.learn(state, delta)
         if mu is not None:
             mu[state] += 1
 
@@ -580,7 +595,7 @@ def n_step_semi_gradient_td(value_func, random_walk, n, alpha, gamma):
                 else:
                     value = value_func.get_value(states[tau])
                 delta = alpha * (G - value)
-                value_func.update_weights(states[tau], delta)
+                value_func.learn(states[tau], delta)
         t += 1
         if tau == T - 1:
             break

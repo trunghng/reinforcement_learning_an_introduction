@@ -19,7 +19,7 @@ def epsilon_greedy(epsilon, Q, n_actions, state):
 
     Return
     ------
-    action: (int, int)
+    action: int
     '''
     if not np.random.binomial(1, epsilon):
         action = np.argmax(Q[state[0], state[1]])

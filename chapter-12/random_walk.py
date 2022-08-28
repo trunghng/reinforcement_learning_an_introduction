@@ -98,7 +98,7 @@ class ValueFunction(ABC):
 
 
     @abstractmethod
-    def update_weights(self, state, delta):
+    def learn(self, state, delta):
         pass
 
 
@@ -131,15 +131,15 @@ class LambdaReturnValueFunction(ValueFunction):
         return value
 
 
-    def update_weights(self, state, delta):
+    def learn(self, state, error):
         '''
         Update weight vector @self.w
 
         Params
         ------
-        delta: float
+        delta: error
         '''
-        self.w[state] += delta
+        self.w[state] += error
 
 
 class TDLambdaValueFunction(ValueFunction):
@@ -206,7 +206,7 @@ class TDLambdaValueFunction(ValueFunction):
         return grad
 
 
-    def update_weights(self, delta):
+    def learn(self, error):
         '''
         Update weight vector @self.w
 
@@ -214,7 +214,7 @@ class TDLambdaValueFunction(ValueFunction):
         ------
         delta: float
         '''
-        self.w += delta
+        self.w += error
 
 
 class TrueOnlineTDLambdaValueFunction(ValueFunction):
@@ -281,15 +281,15 @@ class TrueOnlineTDLambdaValueFunction(ValueFunction):
         return grad
 
 
-    def update_weights(self, delta):
+    def learn(self, error):
         '''
         Update weight vector @self.w
 
         Params
         ------
-        delta: float
+        error: float
         '''
-        self.w += delta
+        self.w += error
 
 
 def get_true_value(random_walk, gamma):
@@ -360,7 +360,7 @@ def offline_lambda_return(value_function, lambda_, alpha, gamma, random_walk):
 
     Params
     ------
-    value_function: np.ndarray
+    value_function: ValueFunction
         value function
     lambda_: float
         trace decay param
@@ -395,7 +395,7 @@ def offline_lambda_return(value_function, lambda_, alpha, gamma, random_walk):
                 if np.power(lambda_, T - t - 1) >= lambda_truncate:
                     lambda_return += np.power(lambda_, T - t - 1) * reward
                 delta = alpha * (lambda_return - value_function.get_value(states[t]))
-                value_function.update_weights(states[t], delta)
+                value_function.learn(states[t], delta)
             break
 
 
@@ -405,7 +405,7 @@ def td_lambda(value_function, lambda_, alpha, gamma, random_walk):
 
     Params
     ------
-    value_function: np.ndarray
+    value_function: ValueFunction
         value function
     lambda_: float
         trace decay param
@@ -424,7 +424,7 @@ def td_lambda(value_function, lambda_, alpha, gamma, random_walk):
         eligible_trace = gamma * lambda_ * eligible_trace + value_function.get_grad(state)
         td_error = reward + gamma * value_function.get_value(next_state) - value_function.get_value(state)
         delta = alpha * td_error * eligible_trace
-        value_function.update_weights(delta)
+        value_function.learn(delta)
         state = next_state
 
 
@@ -434,7 +434,7 @@ def true_online_td_lambda(value_function, lambda_, alpha, gamma, random_walk):
 
     Params
     ------
-    value_function: np.ndarray
+    value_function: ValueFunction
         value function
     lambda_: float
         trace decay param
@@ -461,7 +461,7 @@ def true_online_td_lambda(value_function, lambda_, alpha, gamma, random_walk):
             * dutch_trace.dot(state_feature_vector)) * state_feature_vector
         delta = alpha * ((td_error + state_value - old_state_value) * dutch_trace \
             - (state_value - old_state_value) * state_feature_vector)
-        value_function.update_weights(delta)
+        value_function.learn(delta)
         state = next_state
         old_state_value = next_state_value
 
