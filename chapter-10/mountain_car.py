@@ -22,8 +22,8 @@ class ValueFunction:
         self.position_scale = n_tilings / (env.high[0] - env.low[0])
         self.velocity_scale = n_tilings / (env.high[1] - env.low[1])
         # size = math.ceil((position_scale + 1) * (velocity_scale + 1) * n_tilings)
-        self.iht = IHT(2048)
-        self.w = np.zeros(2048)
+        self.iht = IHT(4096)
+        self.w = np.zeros(4096)
         self.env = env
 
 
@@ -208,10 +208,41 @@ def episodic_semi_gradient_n_step_sarsa(value_function, env, n, alpha, gamma, ep
     state = env.reset()
     action = epsilon_greedy(epsilon, value_function, 
         state[0], state[1], n_actions)
+    states = [state]
+    actions = [action]
+    rewards = [0] # 0 is a dummy reward
+    T = float('inf')
+    t = 0
 
     while True:
-        pass
+        if t < T:
+            next_state, reward, terminated, _ = env.step(actions[t])
+            states.append(next_state)
+            rewards.append(reward)
 
+            if terminated:
+                T = t + 1
+            else:
+                next_action = epsilon_greedy(epsilon, value_function,
+                    next_state[0], next_state[1], n_actions)
+                actions.append(next_action)
+
+        tau = t - n + 1
+        if tau >= 0:
+            G = 0
+            for i in range(tau + 1, min(tau + n, T) + 1):
+                G += np.power(gamma, i - tau - 1) * rewards[i]
+            if tau + n < T:
+                G += np.power(gamma, n) * value_function.get_value(
+                    states[tau + n][0], states[tau + n][1], actions[tau + n])
+                value_function.learn(states[tau][0], states[tau][1], 
+                    actions[tau], G, alpha)
+
+        t += 1
+        if tau == T - 1:
+            break
+
+    return t
 
 
 def episodic_semi_gradient_sarsa_plot():
@@ -229,7 +260,8 @@ def episodic_semi_gradient_sarsa_plot():
     value_function = ValueFunction(n_tilings, env)
 
     for ep in trange(n_eps):
-        episodic_semi_gradient_sarsa(value_function, env, alpha, gamma, epsilon, ep, n_eps)
+        episodic_semi_gradient_sarsa(value_function, env, alpha, 
+            gamma, epsilon, ep, n_eps)
         if ep in plot_eps:
             ax = fig.add_subplot(2, 3, plot_count + 1, projection='3d')
             plot_count += 1
@@ -242,7 +274,8 @@ def episodic_semi_gradient_sarsa_plot():
                 for velocity in velocities:
                     axis_x.append(position)
                     axis_y.append(velocity)
-                    axis_z.append(value_function.cost_to_go(position, velocity, env.action_space.n))
+                    axis_z.append(value_function.cost_to_go(position, 
+                        velocity, env.action_space.n))
 
             ax.scatter(axis_x, axis_y, axis_z)
             ax.set_xlabel('Position')
@@ -254,5 +287,40 @@ def episodic_semi_gradient_sarsa_plot():
     plt.close()
 
 
+def episodic_semi_gradient_n_step_sarsa_plot():
+    runs = 10
+    n_eps = 500
+    n_tilings = 8
+    ns = [1, 8]
+    alphas = [0.5, 0.3]
+    gamma = 1
+    epsilon = 0.1
+    env = gym.make('MountainCar-v0')
+    env.reset()
+
+    steps = np.zeros((len(alphas), n_eps))
+    for run in range(runs):
+        value_functions = [ValueFunction(n_tilings, env) for _ in alphas]
+        for alpha_idx in range(len(alphas)):
+            for ep in trange(n_eps):
+                step = episodic_semi_gradient_n_step_sarsa(value_functions[alpha_idx], 
+                    env, ns[alpha_idx], alphas[alpha_idx], gamma, epsilon)
+                steps[alpha_idx, ep] += step
+
+    steps /= runs
+
+    for i in range(0, len(alphas)):
+        plt.plot(steps[i], label='n = %d' % (ns[i]))
+    plt.xlabel('Episode')
+    plt.ylabel('Steps per episode')
+    plt.ylim([100, 1000])
+    plt.yscale('log')
+    plt.legend()
+
+    plt.savefig('./mountain-car-ep-semi-grad-n-step-sarsa.png')
+    plt.close()
+
+
 if __name__ == '__main__':
-    episodic_semi_gradient_sarsa_plot()
+    # episodic_semi_gradient_sarsa_plot()
+    episodic_semi_gradient_n_step_sarsa_plot()

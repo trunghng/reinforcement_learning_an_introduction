@@ -108,10 +108,12 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [x] Mountain Car - **Episodic Semi-gradient Sarsa**
 	- Code: [view](./chapter-10/mountain_car.py)
 	- Result: [view](./chapter-10/mountain-car-ep-semi-grad-sarsa.png)
-- [ ] Mountain Car - **Episodic Semi-gradient n-step Sarsa**
+- [x] Mountain Car - **Episodic Semi-gradient n-step Sarsa**
 	- Code: [view](./chapter-10/mountain_car.py)
 	- Result: [view](./chapter-10/mountain-car-ep-semi-grad-n-step-sarsa.png)
-- [ ] Access Control - 
+- [ ] Access Control - **Differential Seimi-gradient Sarsa**
+	- Code: [view](./chapter-10/access_control.py)
+	- Result: 
 #### Chapter 11: Off-policy Methods with Approximation
 #### Chapter 12: Eligible Traces
 - [x] Random Walk - **Offline lambda-return**
@@ -126,4 +128,5 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [ ] Mountain Car - **Sarsa(lambda) w/ replacing traces**
 - [ ] Mountain Car - **Sarsa(lambda) w/ accumulating traces**
 - [ ] Mountain Car - **True online Sarsa(lambda)**
+#### Chapter 13: Policy Gradient
 (Updating)
