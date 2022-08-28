@@ -105,7 +105,12 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 	- Code: [view](./chapter-9/square_wave.py)
 	- Result: [view](./chapter-9/squave_wave_function.png)
 #### Chapter 10: On-policy Control with Approximation
-- [ ] Mountain Car - **Episodic Semi-gradient Sarsa**
+- [x] Mountain Car - **Episodic Semi-gradient Sarsa**
+	- Code: [view](./chapter-10/mountain_car.py)
+	- Result: [view](./chapter-10/mountain-car-ep-semi-grad-sarsa.png)
+- [ ] Mountain Car - **Episodic Semi-gradient n-step Sarsa**
+	- Code: [view](./chapter-10/mountain_car.py)
+	- Result: [view](./chapter-10/mountain-car-ep-semi-grad-n-step-sarsa.png)
 - [ ] Access Control - 
 #### Chapter 11: Off-policy Methods with Approximation
 #### Chapter 12: Eligible Traces
