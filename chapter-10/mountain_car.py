@@ -21,15 +21,17 @@ class ValueFunction:
         self.n_tilings = n_tilings
         self.position_scale = n_tilings / (env.high[0] - env.low[0])
         self.velocity_scale = n_tilings / (env.high[1] - env.low[1])
-        # size = math.ceil((position_scale + 1) * (velocity_scale + 1) * n_tilings)
-        self.iht = IHT(4096)
-        self.w = np.zeros(4096)
+        # size = math.ceil((self.position_scale + 1) * (self.velocity_scale + 1) * n_tilings)
+        size = 4096
+        self.iht = IHT(size)
+        self.w = np.zeros(size)
         self.env = env
 
 
     def get_active_tiles(self, position, velocity, action):
         '''
-        Get active tile corresponding to state-action pair [[@position, @velocity], @action]
+        Get (indices of) active tiles corresponding to 
+        state-action pair [[@position, @velocity], @action]
         (i.e., index of the tile in each tilings where the value = 1)
 
         Params
@@ -53,7 +55,8 @@ class ValueFunction:
     def get_value(self, position, velocity, action):
         '''
         Get action-value of state-action pair [[@position, @velocity], @action]
-        Since the feature vector is one-hot and we are using linear function approx
+        Since the feature vector is one-hot and 
+        we are using linear function approx
         => value at [[@position, @velocity], @action] is exactly the 
             total of weight corresponding to [[@position, @velocity], @action]
 
@@ -66,8 +69,6 @@ class ValueFunction:
         action: int
             action taken at the current state
         '''
-        if position == self.env.high[0]:
-            return 0
         active_tiles = self.get_active_tiles(position, velocity, action)
         return np.sum(self.w[active_tiles])
 
@@ -150,7 +151,7 @@ def episodic_semi_gradient_sarsa(value_function, env, alpha, gamma, epsilon,
     ------
     value_function: ValueFunction
         action-value function
-    env: OpenAI's MountainCar env
+    env: OpenAI's MountainCar
     alpha: float
         step size
     gamma: float
@@ -160,7 +161,7 @@ def episodic_semi_gradient_sarsa(value_function, env, alpha, gamma, epsilon,
     current_ep: int
         current epside
     n_eps: int
-        number of episodes
+        total number of episodes
     '''
     n_actions = env.action_space.n
     state = env.reset()
@@ -168,7 +169,7 @@ def episodic_semi_gradient_sarsa(value_function, env, alpha, gamma, epsilon,
         state[0], state[1], n_actions)
 
     while True:
-        if current_ep + 20 >= n_eps:
+        if current_ep + 10 >= n_eps:
             env.render()
 
         next_state, reward, terminated, _ = env.step(action)
@@ -186,7 +187,8 @@ def episodic_semi_gradient_sarsa(value_function, env, alpha, gamma, epsilon,
         action = next_action
 
 
-def episodic_semi_gradient_n_step_sarsa(value_function, env, n, alpha, gamma, epsilon):
+def episodic_semi_gradient_n_step_sarsa(value_function, env, n,
+                                    alpha, gamma, epsilon):
     '''
     Episodic Semi-gradient n-step Sarsa algorithm
 
@@ -194,7 +196,7 @@ def episodic_semi_gradient_n_step_sarsa(value_function, env, n, alpha, gamma, ep
     ------
     value_function: ValueFunction
         action-value function
-    env: OpenAI's MountainCar env
+    env: OpenAI's MountainCar
     n: int
         n-step
     alpha: float
@@ -249,7 +251,7 @@ def episodic_semi_gradient_sarsa_plot():
     n_eps = 9000
     alpha = 0.3
     gamma = 1
-    epsilon = 0
+    epsilon = 0.1
     n_tilings = 8
     plot_eps = [0, 99, 399, 999, 3999, n_eps - 1]
     fig = plt.figure(figsize=(24, 16))
@@ -288,13 +290,13 @@ def episodic_semi_gradient_sarsa_plot():
 
 
 def episodic_semi_gradient_n_step_sarsa_plot():
-    runs = 10
+    runs = 100
     n_eps = 500
     n_tilings = 8
     ns = [1, 8]
     alphas = [0.5, 0.3]
     gamma = 1
-    epsilon = 0.1
+    epsilon = 0
     env = gym.make('MountainCar-v0')
     env.reset()
 
@@ -313,7 +315,7 @@ def episodic_semi_gradient_n_step_sarsa_plot():
         plt.plot(steps[i], label='n = %d' % (ns[i]))
     plt.xlabel('Episode')
     plt.ylabel('Steps per episode')
-    plt.ylim([100, 1000])
+    # plt.ylim([100, 1000])
     plt.yscale('log')
     plt.legend()
 
