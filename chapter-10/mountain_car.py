@@ -315,7 +315,6 @@ def episodic_semi_gradient_n_step_sarsa_plot():
         plt.plot(steps[i], label='n = %d' % (ns[i]))
     plt.xlabel('Episode')
     plt.ylabel('Steps per episode')
-    # plt.ylim([100, 1000])
     plt.yscale('log')
     plt.legend()
 

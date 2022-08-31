@@ -111,7 +111,7 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [x] Mountain Car - **Episodic Semi-gradient n-step Sarsa**
 	- Code: [view](./chapter-10/mountain_car.py)
 	- Result: [view](./chapter-10/mountain-car-ep-semi-grad-n-step-sarsa.png)
-- [ ] Access Control - **Differential Seimi-gradient Sarsa**
+- [ ] Access Control - **Differential Semi-gradient Sarsa**
 	- Code: [view](./chapter-10/access_control.py)
 	- Result: 
 #### Chapter 11: Off-policy Methods with Approximation
@@ -124,9 +124,15 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 	- Result: [view](./chapter-12/td-lambda.png)
 - [x] Random Walk - **True online TD(lambda)**
 	- Code: [view](./chapter-12/random_walk.py)
-	- Result: 
-- [ ] Mountain Car - **Sarsa(lambda) w/ replacing traces**
-- [ ] Mountain Car - **Sarsa(lambda) w/ accumulating traces**
-- [ ] Mountain Car - **True online Sarsa(lambda)**
+	- Result: [view](./chapter-12/true-online-td-lambda.png)
+- [x] Mountain Car - **Sarsa(lambda) w/ replacing traces**
+	- Code: [view](./chapter-12/mountain_car.py)
+	- Result: [view](./chapter-12/sarsa-lambda-replacing-trace.png)
+- [x] Mountain Car - **Sarsa(lambda) w/ accumulating traces**
+	- Code: [view](./chapter-12/mountain_car.py)
+	- Result:
+- [x] Mountain Car - **True online Sarsa(lambda)**
+	- Code: [view](./chapter-12/mountain_car.py)
+	- Result:
 #### Chapter 13: Policy Gradient
 (Updating)
