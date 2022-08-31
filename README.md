@@ -118,13 +118,13 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 #### Chapter 12: Eligible Traces
 - [x] Random Walk - **Offline lambda-return**
 	- Code: [view](./chapter-12/random_walk.py)
-	- Result: [view](./chapter-12/offline-lambda-return.png)
+	- Result: [view](./chapter-12/random-walk-offline-lambda-return.png)
 - [x] Random Walk - **TD(lambda)**
 	- Code: [view](./chapter-12/random_walk.py)
-	- Result: [view](./chapter-12/td-lambda.png)
+	- Result: [view](./chapter-12/random-walk-td-lambda.png)
 - [x] Random Walk - **True online TD(lambda)**
 	- Code: [view](./chapter-12/random_walk.py)
-	- Result: [view](./chapter-12/true-online-td-lambda.png)
+	- Result: [view](./chapter-12/random-walk-true-online-td-lambda.png)
 - [x] Mountain Car - **Sarsa(lambda) w/ replacing traces**
 	- Code: [view](./chapter-12/mountain_car.py)
 	- Result: [view](./chapter-12/sarsa-lambda-replacing-trace.png)
