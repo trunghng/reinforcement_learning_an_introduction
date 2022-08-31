@@ -512,19 +512,19 @@ if __name__ == '__main__':
             'func': offline_lambda_return,
             'value_function': LambdaReturnValueFunction,
             'step_sizes': offline_lambd_return_alphas,
-            'img_path': './offline-lambda-return.png'
+            'img_path': './random-walk-offline-lambda-return.png'
         },
         {
             'func': td_lambda,
             'value_function': TDLambdaValueFunction,
             'step_sizes': td_lambda_alphas,
-            'img_path': './td-lambda.png'
+            'img_path': './random-walk-td-lambda.png'
         },
         {
             'func': true_online_td_lambda,
             'value_function': TrueOnlineTDLambdaValueFunction,
             'step_sizes': true_online_td_lambda_alphas,
-            'img_path': './true-online-td-lambda.png'
+            'img_path': './random-walk-true-online-td-lambda.png'
         }
     ]
 
