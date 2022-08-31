@@ -227,7 +227,7 @@ class SarsaLambda:
 class TrueOnlineSarsaLambda:
 
 
-    def __init__(self, env, lambda_, alpha, gamma, epsilon, n_tilings, n_eps):
+    def __init__(self, env, lambda_, alpha, gamma, epsilon, n_tilings, n_eps, max_steps):
         '''
         Params
         ------
@@ -250,6 +250,7 @@ class TrueOnlineSarsaLambda:
         self.epsilon = epsilon
         self.n_tilings = n_tilings
         self.n_eps = n_eps
+        self.max_steps = max_steps
         self.weights = np.zeros(2048)
         self.trace = np.zeros(2048)
         self.iht = IHT(2048)
@@ -295,6 +296,13 @@ class TrueOnlineSarsaLambda:
         if terminated is not None and terminated:
             return 0
         active_tiles = self.get_active_tiles(position, velocity, action)
+        value = np.sum(self.weights[active_tiles])
+        return value
+
+
+    def get_value_with_active_tiles(self, active_tiles, terminated=None):
+        if terminated is not None and terminated:
+            return 0
         value = np.sum(self.weights[active_tiles])
         return value
 
@@ -347,9 +355,9 @@ class TrueOnlineSarsaLambda:
         active_tiles: list<int>
             list of (indices of) active tiles
         '''
-        self.trace *= self.gamma * self.lambda_
         delta = 1 - self.alpha * self.gamma * self.lambda_ \
             * np.sum(self.trace[active_tiles])
+        self.trace *= self.gamma * self.lambda_
         self.trace[active_tiles] += delta
 
 
@@ -363,27 +371,27 @@ class TrueOnlineSarsaLambda:
             total reward in the episode
         '''
         self.reset()
-        state = self.start_state
-        action = self.epsilon_greedy(self.epsilon, state[0], state[1])
-        active_tiles = self.get_active_tiles(state[0], state[1], action)
-        total_reward = 0
+        position, velocity = self.start_state
+        action = self.epsilon_greedy(self.epsilon, position, velocity)
+        active_tiles = self.get_active_tiles(position, velocity, action)
         old_action_value = 0
+        total_reward = 0
+        step = 0
 
         while True:
+            step += 1
             if current_ep + 20 >= self.n_eps:
                 self.env.render()
 
             next_state, reward, terminated, _ = self.env.step(action)
             total_reward += reward
-            position, velocity = state
             next_position, next_velocity = next_state
             next_action = self.epsilon_greedy(self.epsilon, 
                 next_position, next_velocity)
             next_active_tiles = self.get_active_tiles(next_position, 
                 next_velocity, next_action, terminated)
-            action_value = self.get_value(position, velocity, action)
-            next_action_value = self.get_value(next_position, next_velocity, 
-                next_action, terminated)
+            action_value = self.get_value_with_active_tiles(active_tiles)
+            next_action_value = self.get_value_with_active_tiles(next_active_tiles, terminated)
             td_error = reward + self.gamma * next_action_value - action_value
             self.update_trace(active_tiles)
             error = (td_error + action_value - old_action_value) * self.trace
@@ -394,6 +402,9 @@ class TrueOnlineSarsaLambda:
             action = next_action
 
             if terminated:
+                break
+            elif step >= self.max_steps:
+                print('Max #steps reached!')
                 break
 
         return total_reward
@@ -429,6 +440,7 @@ def sarsa_lambda_plot():
             % (str(lambdas[lambda_idx])))
     plt.xlabel(r'$\alpha$ * # of tilings (8)')
     plt.ylabel('averaged steps per episode')
+    plt.ylim([180, 300])
     plt.legend(loc='upper right')
 
     plt.savefig('./mountain-car-sarsa-lambda-replacing-trace.png')
@@ -436,21 +448,22 @@ def sarsa_lambda_plot():
 
 
 def true_online_sarsa_lambda_plot():
-    env = gym.make('MountainCar-v0')
-    n_eps = 3000
+    env = gym.make('MountainCar-v0').env
+    n_eps = 1500
     alpha = 0.2
     lambda_ = 0.4
-    epsilon = 0.1
+    epsilon = 0
     gamma = 0.9
     n_tilings = 8
+    max_steps = 5000
 
     reward_list = []
     ave_reward_list = []
 
     true_online_sarsa_lambda = TrueOnlineSarsaLambda(env, lambda_, alpha, 
-        gamma, epsilon, n_tilings, n_eps)
+        gamma, epsilon, n_tilings, n_eps, max_steps)
 
-    for ep in range(n_eps):
+    for ep in trange(n_eps):
         total_reward = true_online_sarsa_lambda.run(ep)
 
         reward_list.append(total_reward)
@@ -469,8 +482,9 @@ def true_online_sarsa_lambda_plot():
     plt.ylabel('Average Reward')
     plt.title('Average Reward vs Episodes')
     plt.savefig('./mountain-car-true-online-sarsa-lambda.png')
-    plt.close()  
+    plt.close()
 
 
 if __name__ == '__main__':
-    sarsa_lambda_plot()
+    # sarsa_lambda_plot()
+    true_online_sarsa_lambda_plot()
