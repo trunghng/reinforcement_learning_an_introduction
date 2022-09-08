@@ -272,7 +272,7 @@ class BasesValueFunction(ValueFunction):
             value = 0
         else:
             state /= float(self.n_states)
-            feature_vector = self.get_feature_vector(state)
+            feature_vector = self._get_feature_vector(state)
             value = np.dot(self.weights, feature_vector)
         return value
 
@@ -447,6 +447,7 @@ class GradientMonteCarlo(Agent):
         mu: state distribution
         '''
         super().__init__(env, value_function, alpha, gamma)
+        self.mu = mu
 
 
     def learn(self, state: int, target: float, estimate: float) -> None:
@@ -571,12 +572,11 @@ def gradient_mc_state_aggregation_plot(env: RandomWalk,
     true_value: true values
     '''
     alpha = 2e-5
-    gamma = 1
     n_groups = 10
     n_eps = 100000
     mu = np.zeros(env.n_states + 2)
     value_function = StateAggregationValueFunction(n_groups, env.n_states)
-    gradient_mc = GradientMonteCarlo(env, value_function, alpha, gamma, mu)
+    gradient_mc = GradientMonteCarlo(env, value_function, alpha, mu)
 
     for _ in trange(n_eps):
         gradient_mc.run()
@@ -600,60 +600,6 @@ def gradient_mc_state_aggregation_plot(env: RandomWalk,
     plt.legend(plots, labels, loc=0)
     plt.savefig('./gradient_mc_state_agg.png')
     plt.close()
-
-
-# def n_step_semi_gradient_td(value_func, random_walk, n, alpha, gamma):
-#     '''
-#     n-step semi-gradient TD
-
-#     Params
-#     ------
-#     value_func
-#     random_walk: RandomWalk
-#     n: int
-#         number of step
-#     alpha: float
-#         step size
-#     gamma: float
-#         discount factor
-#     '''
-#     state = random_walk.start_state
-#     states = [state]
-
-#     T = float('inf')
-#     t = 0
-#     rewards = [0] # dummy reward to save the next reward as R_{t+1}
-
-#     while True:
-#         if t < T:
-#             action = random_policy(random_walk)
-#             next_state, reward = random_walk.take_action(state, action)
-#             states.append(next_state)
-#             rewards.append(reward)
-#             if random_walk.is_terminal(next_state):
-#                 T = t + 1
-#         tau = t - n + 1
-#         if tau >= 0:
-#             G = 0
-#             for i in range(tau + 1, min(tau + n, T) + 1):
-#                 G += np.power(gamma, i - tau - 1) * rewards[i]
-#             if tau + n < T:
-#                 if random_walk.is_terminal(states[tau + n]):
-#                     value = 0
-#                 else:
-#                     value = value_func.get_value(states[tau + n])
-#                 G += np.power(gamma, n) * value
-#             if not random_walk.is_terminal(states[tau]):
-#                 if random_walk.is_terminal(states[tau]):
-#                     value = 0
-#                 else:
-#                     value = value_func.get_value(states[tau])
-#                 delta = alpha * (G - value)
-#                 value_func.learn(states[tau], delta)
-#         t += 1
-#         if tau == T - 1:
-#             break
-#         state = next_state
 
 
 def semi_gradient_td_0_plot(env: RandomWalk, 
@@ -745,7 +691,7 @@ def semi_gradient_td_plot(env: RandomWalk,
     semi_gradient_td_0_plot(env, true_value)
     plt.subplot(122)
     n_step_semi_gradient_td_plot(env, true_value)
-    plt.savefig('./semi_gradient_td2.png')
+    plt.savefig('./semi_gradient_td.png')
     plt.close()
 
 
@@ -819,7 +765,7 @@ def gradient_mc_bases_plot(env: RandomWalk,
             print(f'{basis["method"]} basis, order={order}')
             for _ in range(n_runs):
                 value_function = BasesValueFunction(order, basis['method'], env.n_states)
-                gradient_mc = GradientMonteCarlo(env, value_function, alpha, gamma)
+                gradient_mc = GradientMonteCarlo(env, value_function, basis['alpha'])
 
                 for ep in trange(n_eps):
                     gradient_mc.run()
@@ -837,7 +783,7 @@ def gradient_mc_bases_plot(env: RandomWalk,
     plt.ylabel('RMSE')
     plt.legend()
 
-    plt.savefig('./gradient_mc_bases2.png')
+    plt.savefig('./gradient_mc_bases.png')
     plt.close()
 
 
@@ -850,7 +796,7 @@ if __name__ == '__main__':
         transition_radius=transition_radius)
     true_value = get_true_value(env)
 
-    # gradient_mc_state_aggregation_plot(env, true_value)
+    gradient_mc_state_aggregation_plot(env, true_value)
     semi_gradient_td_plot(env, true_value)
-    # gradient_mc_tilings(env, true_value)
-    # gradient_mc_bases_plot(env, true_value)
+    gradient_mc_tilings(env, true_value)
+    gradient_mc_bases_plot(env, true_value)
