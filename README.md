@@ -127,12 +127,18 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 	- Result: [view](./chapter-12/random-walk-true-online-td-lambda.png)
 - [x] Mountain Car - **Sarsa(lambda) w/ replacing traces**
 	- Code: [view](./chapter-12/mountain_car.py)
-	- Result: [view](./chapter-12/sarsa-lambda-replacing-trace.png)
+	- Result: [view](./chapter-12/mountain-car-sarsa-lambda-replacing-trace.png)
 - [x] Mountain Car - **Sarsa(lambda) w/ accumulating traces**
 	- Code: [view](./chapter-12/mountain_car.py)
 	- Result:
 - [x] Mountain Car - **True online Sarsa(lambda)**
 	- Code: [view](./chapter-12/mountain_car.py)
-	- Result:
+	- Result: [view](./chapter-12/mountain-car-true-online-sarsa-lambda.png)
 #### Chapter 13: Policy Gradient
+- [ ] Short Corridor - **REINFORCE**
+	- Code: [view](./chapter-13/short_corridor.py)
+	- Result: [view](./chapter-13/short-corridor-reinforce.png)
+- [ ] Short Corridor - **REINFORCE w/ baseline**
+	- Code: [view](./chapter-13/short_corridor.py)
+	- Result: [view](./chapter-13/short-corridor-reinforce-baseline.png)
 (Updating)
