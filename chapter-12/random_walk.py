@@ -38,12 +38,12 @@ def get_true_value(random_walk: RandomWalk, gamma: float) -> np.ndarray:
 
         for action, next_state, reward, terminated in trajectory:
             if not terminated:
-                P[state - 1, next_state - 1] = random_walk.trans_probs[action] * 1
+                P[state - 1, next_state - 1] = random_walk.transition_probs[action] * 1
                 r[next_state] = reward
         
     u = np.zeros((random_walk.n_states, ))
-    u[0] = random_walk.trans_probs[-1] * 1 * (-1 + gamma * random_walk.reward_space[0])
-    u[-1] = random_walk.trans_probs[1] * 1 * (1 + gamma * random_walk.reward_space[2])
+    u[0] = random_walk.transition_probs[-1] * 1 * (-1 + gamma * random_walk.reward_space[0])
+    u[-1] = random_walk.transition_probs[1] * 1 * (1 + gamma * random_walk.reward_space[2])
 
     r = r[1:-1]
     true_value[1:-1] = np.linalg.inv(np.identity(random_walk.n_states) 
@@ -84,7 +84,10 @@ class EligibleTraceAgent(ABC):
 
 
     def reset(self) -> None:
-        self.state = self.env.reset()
+        '''
+        Reset agent
+        '''
+        self.env.reset()
 
 
     def random_policy(self) -> int:
@@ -203,8 +206,8 @@ class OfflineLambdaReturn(EligibleTraceAgent):
         '''
         Perform an episode
         '''
-        self.reset()
-        states = [self.state]
+        start_state = self.reset()
+        states = [start_state]
 
         while True:
             action = self.random_policy()

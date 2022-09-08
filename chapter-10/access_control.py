@@ -16,7 +16,7 @@ class AccessControl:
 
 
     def take_action(self, state, action):
-
+        pass
 
 
 

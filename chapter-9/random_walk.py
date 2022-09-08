@@ -1,175 +1,48 @@
+import sys
+from os.path import dirname, join, realpath
+dir_path = dirname(dirname(realpath(__file__)))
+sys.path.insert(1, join(dir_path, 'utils'))
+from abc import ABC, abstractmethod
+from typing import List, Callable
+
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm, trange
-import abc
-from abc import ABC, abstractmethod
 
-class RandomWalk:
+from env import RandomWalk
+
+
+def get_true_value(env: RandomWalk) -> np.ndarray:
     '''
-    Random walk env with a transition radius
-    '''
-
-
-    def __init__(self, n_states, start_state, transition_radius):
-        self.n_states = n_states
-        self.start_state = start_state
-        self.transition_radius = transition_radius
-        self.states = np.arange(1, n_states + 1)
-        self.end_states = [0, n_states + 1]
-        self.actions = [-1, 1]
-        self.rewards = [-1, 0, 1]
-
-
-    def is_terminal(self, state):
-        '''
-        Whether state @state is an end state
-
-        Params
-        ------
-        state: int
-            current state
-        '''
-        return state in self.end_states
-
-
-    def get_pos_next_states(self, state, action):
-        '''
-        Get possible states at state @state, taking action @action
-
-        Params
-        ------
-        state: int
-            current state
-        action: int
-            action taken
-
-        Return
-        ------
-        pos_next_states: np.ndarray
-            list of possible next states
-        '''
-        if action == self.actions[0]:
-            pos_next_states = np.arange(max(self.end_states[0], state - 
-                self.transition_radius), state + action + 1)
-        else:
-            pos_next_states = np.arange(state + action, min(self.end_states[1], 
-                state + self.transition_radius) + 1)
-
-        return pos_next_states
-
-
-    def get_state_transition(self, state, pos_next_states):
-        '''
-        Get state transition at state @state
-
-        Params
-        ------
-        state: int
-            current state
-        pos_next_states: np.ndarray
-            list of possible next states
-
-        Return
-        ------
-        state_transition: np.ndarray
-            state transition probability
-        '''
-        next_state_prob = 1.0 / self.transition_radius
-        state_transition = np.array([next_state_prob for _ in pos_next_states])
-
-        if self.end_states[0] == pos_next_states[0]:
-            state_transition[0] += (self.transition_radius 
-                - len(pos_next_states)) * next_state_prob
-        elif self.end_states[1] == pos_next_states[-1]:
-            state_transition[-1] += (self.transition_radius 
-                - len(pos_next_states)) * next_state_prob
-
-        return state_transition
-
-
-    def get_next_state(self, state, action):
-        step = np.random.randint(1, self.transition_radius + 1)
-        next_state = min(self.end_states[1], max(self.end_states[0], state + action * step))
-        return next_state
-
-
-    def get_reward(self, state):
-        '''
-        Get reward when ending at state @state
-
-        Params
-        ------
-        state: int
-            current state
-
-        Return
-        ------
-        reward: int
-            reward at state @state
-        '''
-        if state == self.end_states[0]:
-            reward = self.rewards[0]
-        elif state == self.end_states[1]:
-            reward = self.rewards[2]
-        else:
-            reward = self.rewards[1]
-
-        return reward
-
-
-    def take_action(self, state, action):
-        '''
-        Take action @action at state @state
-
-        Params
-        ------
-        state: int
-            current state
-        action: int
-            action taken
-
-        Return
-        ------
-        (next_state, reward): (int, int)
-            a tuple of next state and reward
-        '''
-        next_state = self.get_next_state(state, action)
-        reward = self.get_reward(next_state)
-
-        return next_state, reward
-
-
-def get_true_value(random_walk):
-    '''
-    Calculate true values of @random_walk by DP
+    Calculate true values of @env by Dynamic programming
 
     Params
     ------
-    random_walk: RandomWalk
+    env: RandomWalk env
 
     Return
     ------
-    true_value: np.ndarray
-        true values of @random_walk's states
+    true_value: true values of @env's states
     '''
-    # With this random walk, it makes sense to initialize the values in the closed interval 
-    # [-1, 1] and increasing
-    n_states = random_walk.n_states
+    # With this random walk, it makes sense to initialize the values 
+    # in the closed interval [-1, 1] and increasing
+    n_states = env.n_states
     true_value = np.arange(-(n_states + 1), n_states + 3, 2) / (n_states + 1)
     theta = 1e-2
 
     while True:
         old_value = true_value.copy()
-        for idx_state, state in enumerate(random_walk.states):
+        for state in env.state_space:
             true_value[state] = 0
+            trajectory = []
 
-            for idx_action, action in enumerate(random_walk.actions):
-                pos_next_states = random_walk.get_pos_next_states(state, action)
-                state_transition = random_walk.get_state_transition(state, pos_next_states)
+            for action in env.action_space:
+                state_transition = env.get_state_transition(state, action)
 
-                for i, next_state in enumerate(pos_next_states):
-                    trans_prob = state_transition[i]
-                    true_value[state] += 0.5 * trans_prob * true_value[next_state]
+                for next_state in state_transition:
+                    state_trans_prob = state_transition[next_state]
+                    true_value[state] += env.transition_probs[action] \
+                        * state_trans_prob * true_value[next_state]
 
         delta = np.sum(np.abs(old_value - true_value))
         if delta < theta:
@@ -180,215 +53,241 @@ def get_true_value(random_walk):
     return true_value
 
 
-def random_policy(random_walk):
-    '''
-    Choose an action randomly
-
-    Params
-    ------
-    random_walk: RandomWalk
-    '''
-    return np.random.choice(random_walk.actions)
-
-
 class ValueFunction(ABC):
 
-    @abstractmethod
-    def get_value(self, state):
-        pass
 
-    @abstractmethod
-    def learn(self, state, delta):
+    def __init__(self):
         pass
 
 
-class StateAggregationValueFunction(ValueFunction):
-    '''
-    State Aggregation
-    '''
-
-    def __init__(self, n_groups, n_states):
-        self.n_groups = n_groups
-        self.group_size = n_states // n_groups
-        self.w = np.zeros(n_groups)
-
-
-    def get_group(self, state):
+    @abstractmethod
+    def get_value(self, state: int, terminated: bool=None) -> float:
         '''
-        Get group index
+        Get value of the state @state
 
         Params
         ------
-        state: int
-            current state
-
-        Return
-        ------
-        group_idx: int
-            group index
+        state: state of the agent
+        terminated: whether @state is a terminal state
         '''
-        group_idx = (state - 1) // self.group_size
-        return group_idx
+        pass
 
 
-    def get_grad(self, state):
-        '''
-        Compute the gradient w.r.t @self.w at state @state
-
-        Params
-        ------
-        state: int
-            current state
-
-        Return
-        ------
-        grad: np.ndarray
-            gradient w.r.t @self.w at the current state
-        '''
-        group_idx = self.get_group(state)
-        grad = np.zeros(self.n_groups)
-        grad[group_idx] = 1
-        return grad
-
-
-    def get_value(self, state):
-        '''
-        Get value function at state @state
-        States within a group share the same value function, which is a component of w
-
-        Params
-        ------
-        state: int
-            current state
-
-        Return
-        ------
-        value_func: float
-            value function at state @state
-        '''
-        group_idx = self.get_group(state)
-        value_func = self.w[group_idx]
-        return value_func
-
-
-    def learn(self, state, error):
+    @abstractmethod
+    def update(self, state: int, error: float) -> None:
         '''
         Update weight vector
 
         Params
         ------
-        state: int
-            current state
-        error: float
-            update amount
+        state: state of the agent
+        error: update amount
         '''
-        grad = self.get_grad(state)
-        self.w += error * grad
+        pass
 
 
-class BasesValueFunction(ValueFunction):
+class StateAggregationValueFunction(ValueFunction):
     '''
-    State features w/ bases
+    Value Function using state aggreagation as feature mapping
     '''
 
-    def __init__(self, order, basis_type, n_states):
-        self.order = order
-        # additional basis for bias
-        self.w = np.zeros(order + 1)
-        self.basis_types = ['Polynomial', 'Fourier']
-        self.n_states = n_states
-        self.features = self._get_features(basis_type)
-
-
-    def _get_features(self, basis_type):
+    def __init__(self, n_groups: int, n_states: int) -> None:
         '''
-        Get feature vector functions with 1-dim state
+        Params
+        ------
+        n_groups: number of groups
+        n_states: number of states
+        '''
+        self.n_groups = n_groups
+        self.group_size = n_states // n_groups
+        self.weights = np.zeros(n_groups)
 
-        Params:
-        -------
-        bais_type: str
-            basis type
+
+    def _get_group(self, state: int) -> int:
+        '''
+        Get group index
+
+        Params
+        ------
+        state: state of the agent
 
         Return
         ------
-        features: list
-            list of feature vector functions
+        group_idx: group index
+        '''
+        group_idx = (state - 1) // self.group_size
+        return group_idx
+
+
+    def _get_grad(self, state: int) -> np.ndarray:
+        '''
+        Compute the gradient w.r.t @self.weights at state @state
+
+        Params
+        ------
+        state: state of the agent
+
+        Return
+        ------
+        grad: gradient w.r.t @self.weights at the state @state
+        '''
+        group_idx = self._get_group(state)
+        grad = np.zeros(self.n_groups)
+        grad[group_idx] = 1
+        return grad
+
+
+    def get_value(self, state: int, terminated: bool=None) -> float:
+        '''
+        Get value of state @state
+        States within a group share the same value function,
+        which is a component of @self.weights
+
+        Params
+        ------
+        state: state of the agent
+        terminated: whether state @state is terminal
+
+        Return
+        ------
+        value: value of state @state
+        '''
+        if terminated is not None and terminated:
+            value = 0
+        else:
+            group_idx = self._get_group(state)
+            value = self.weights[group_idx]
+        return value
+
+
+    def update(self, state: int, error: float) -> None:
+        '''
+        Update weight vector
+
+        Params
+        ------
+        state: state of the agent
+        error: update amount
+        '''
+        grad = self._get_grad(state)
+        self.weights += error * grad
+
+
+Feature_mapping = Callable[[int, int], float]
+
+class BasesValueFunction(ValueFunction):
+    '''
+    Value function using polynomial/Fourier basis as feature mapping
+    '''
+
+    def __init__(self, order: int, basis_type: str, 
+                n_states: int) -> None:
+        '''
+        Params
+        ------
+        order: order
+        basis_type: basis type
+        n_states: number of states
+        '''
+        self.order = order
+        self.basis_type = basis_type
+        self.basis_types = ['Polynomial', 'Fourier']
+        self.n_states = n_states
+        # additional basis for bias
+        self.weights = np.zeros(order + 1)
+        self.features = self._get_features()
+
+
+    def _get_features(self) -> List[Feature_mapping]:
+        '''
+        Get feature vector functions with 1-dim state
+
+        Return
+        ------
+        features: list of feature mapping functions
         '''
         features = []
-        if basis_type == self.basis_types[0]:
+        if self.basis_type == self.basis_types[0]:
             for i in range(self.order + 1):
                 features.append(lambda s, i=i: pow(s, i))
-        elif basis_type == self.basis_types[1]:
+        elif self.basis_type == self.basis_types[1]:
             for i in range(self.order + 1):
                 features.append(lambda s, i=i: np.cos(i * np.pi * s))
         return features
 
 
-    def get_feature_vector(self, state):
+    def _get_feature_vector(self, state: int) -> np.ndarray:
         '''
         Get feature vector of state @state
 
         Params
         ------
-        state: int
-            current state
+        state: state of the agent
 
         Return
         ------
-        feature_vector: np.ndarray
-            feature vector
+        feature_vector: feature vector of the state @state
         '''
         feature_vector = np.asarray([x_i(state) for x_i in self.features])
         return feature_vector
 
 
-    def get_grad(self, state):
+    def _get_grad(self, state: int) -> np.ndarray:
         '''
         Compute the gradient w.r.t @self.w at state @state
-        Since value function is approximated by a linear function, its gradient
-        w.r.t the weight @self.w is equal to feature vector @self.features
+        Since value function is approximated by a linear function,
+        its gradient w.r.t the weight @self.weights is equal to 
+        the feature vector @self.features
 
         Params
         ------
-        state: int
-            current state
+        state: state of the agent
 
         Return
         ------
-        grad: np.ndarray
-            gradient w.r.t @self.w at the current state
+        grad: gradient w.r.t @self.weights at the state @state
         '''
         state /= float(self.n_states)
-        feature_vector = self.get_feature_vector(state)
+        feature_vector = self._get_feature_vector(state)
         grad = feature_vector
         return grad
 
 
-    def get_value(self, state):
+    def get_value(self, state: int, terminated: bool=None) -> float:
         '''
-        Get value function at state @state
-        value function is equal to dot product of its feature vector and weight
-        
+        Get value of the state @state
+        value function is equal to dot product of its feature 
+        vector and weight corresponding
 
         Params
         ------
-        state: int
-            current state
+        state: state of the agent
+        terminated: whether @state is terminal
 
         Return
         ------
-        value_func: float
-            value function at state @state
+        value: value of the state @state
         '''
-        state /= float(self.n_states)
-        feature_vector = self.get_feature_vector(state)
-        value_func = np.dot(self.w, feature_vector)
-        return value_func
+        if terminated is not None and terminated:
+            value = 0
+        else:
+            state /= float(self.n_states)
+            feature_vector = self.get_feature_vector(state)
+            value = np.dot(self.weights, feature_vector)
+        return value
 
 
-    def learn(self, state, delta):
-        grad = self.get_grad(state)
-        self.w += delta * grad
+    def update(self, state: int, error: int) -> None:
+        '''
+        Update weight vector
+
+        Params
+        ------
+        state: state of the agent
+        error: update amount
+        '''
+        grad = self._get_grad(state)
+        self.weights += error * grad
 
 
 class TilingValueFunction(ValueFunction):
@@ -454,7 +353,7 @@ class TilingValueFunction(ValueFunction):
         return value
 
 
-    def learn(self, state, error):
+    def update(self, state, error):
         '''
         Update weight vector
 
@@ -472,73 +371,228 @@ class TilingValueFunction(ValueFunction):
             self.w[tiling_idx, active_tiles[tiling_idx]] += delta
 
 
-def gradient_mc(value_func, random_walk, alpha, mu=None):
+class Agent(ABC):
     '''
-    Gradient Monte Carlo
-
-    Params
-    ------
-    value_func
-    random_walk: RandomWalk
-    alpha: float
-        step size
-    mu: np.ndarray
-        state distribution
+    Agent abstract class
     '''
-    state = random_walk.start_state
-    trajectory = [state]
 
-    while not random_walk.is_terminal(state):
-        action = random_policy(random_walk)
-        next_state = random_walk.get_next_state(state, action)
-        trajectory.append(next_state)
-        state = next_state
-    reward = random_walk.get_reward(state)
-
-    # since reward at every states except terminal ones is 0, and discount factor gamma = 1,
-    # the return at each state is equal to the reward at the terminal state.
-    for state in trajectory[:-1]:
-        if random_walk.is_terminal(state):
-            value = 0
-        else:
-            value = value_func.get_value(state)
-        delta = alpha * (reward - value)
-        value_func.learn(state, delta)
-        if mu is not None:
-            mu[state] += 1
+    def __init__(self, env: RandomWalk, 
+                value_function: ValueFunction,
+                alpha: float, gamma: float) -> None:
+        '''
+        Params
+        ------
+        env: RandomWalk env
+        value_function: value function
+        alpha: step size param
+        gamma : discount factor
+        '''
+        self.env = env
+        self.value_function = value_function
+        self.alpha = alpha
+        self.gamma = gamma
 
 
-def gradient_mc_state_aggregation_plot(random_walk, true_value):
+    def reset(self) -> None:
+        '''
+        Reset agent
+        '''
+        self.env.reset()
+
+
+    def random_policy(self) -> int:
+        '''
+        Policy choosing actions randomly
+
+        Return
+        ------
+        action: chosen action
+        '''
+        action = np.random.choice(self.env.action_space)
+        return action
+
+
+    @abstractmethod
+    def learn(self) -> None:
+        '''
+        Update weights vector by SGD method
+        '''
+        pass
+
+
+    @abstractmethod
+    def run(self) -> None:
+        '''
+        Perform an episode
+        '''
+        pass
+
+
+class GradientMonteCarlo(Agent):
+    '''
+    Gradient Monte Carlo agent
+    '''
+
+    def __init__(self, env: RandomWalk,
+                value_function: ValueFunction,
+                alpha: float, gamma: float=None,
+                mu: np.ndarray=None) -> None:
+        '''
+        Params
+        ------
+        env: RandomWalk env
+        value_function: value function
+        alpha: step size param
+        gamma : discount factor
+        mu: state distribution
+        '''
+        super().__init__(env, value_function, alpha, gamma)
+
+
+    def learn(self, state: int, target: float, estimate: float) -> None:
+        '''
+        Update weight vector by SGD method
+
+        Params
+        ------
+        state: state of the agent
+        target: target of the update
+        estimate: estimate of the update
+        '''
+        error = target - estimate
+        error *= self.alpha
+        self.value_function.update(state, error)
+
+
+    def run(self) -> None:
+        '''
+        Perform an episode
+        '''
+        self.reset()
+        trajectory = []
+
+        while True:
+            action = self.random_policy()
+            state = self.env.state
+            next_state, reward, terminated = self.env.step(action)
+            for history in trajectory:
+                history[1] += reward
+            trajectory.append([state, reward])
+
+            if terminated:
+                break
+
+        for state, return_ in trajectory:
+            self.learn(state, return_, self.value_function.get_value(state))
+            if self.mu is not None:
+                self.mu[state] += 1
+
+
+class NStepSemiGradientTD(Agent):
+    '''
+    n-step semi-gradient TD agent
+    '''
+
+    def __init__(self, env: RandomWalk,
+                value_function: ValueFunction,
+                n: int, alpha: float, gamma: float) -> None:
+        '''
+        Params
+        ------
+        env: RandomWalk env
+        value_function: value function
+        n: number of steps
+        alpha: step size param
+        gamma : discount factor
+        '''
+        super().__init__(env, value_function, alpha, gamma)
+        self.n = n
+
+
+    def learn(self, state: int, target: float, estimate: float) -> None:
+        '''
+        Update weight vector by SGD method
+
+        Params
+        ------
+        state: state of the agent
+        target: target of the update
+        estimate: estimate of the update
+        '''
+        error = target - estimate
+        error *= self.alpha
+        self.value_function.update(state, error)
+
+
+    def run(self) -> None:
+        '''
+        Perform an episode
+        '''
+        self.reset()
+        states = [self.env.state]
+        rewards = [0] # dummy reward to save the next reward as R_{t+1}
+        terminates = [False] # flag list to indicate whether S_t is terminal
+        T = float('inf')
+        t = 0
+
+        while True:
+            if t < T:
+                action = self.random_policy()
+                next_state, reward, terminated = self.env.step(action)
+                states.append(next_state)
+                rewards.append(reward)
+                terminates.append(terminated)
+                if terminated:
+                    T = t + 1
+            tau = t - self.n + 1
+            if tau >= 0:
+                G = 0
+                for i in range(tau + 1, min(tau + self.n, T) + 1):
+                    G += np.power(self.gamma, i - tau - 1) * rewards[i]
+                if tau + self.n < T:
+                    G += np.power(self.gamma, self.n) * self.value_function.get_value(
+                        states[tau + self.n], terminates[tau + self.n])
+                if not terminates[tau]:
+                    self.learn(states[tau], G, 
+                        self.value_function.get_value(states[tau]))
+            t += 1
+            if tau == T - 1:
+                break
+
+
+def gradient_mc_state_aggregation_plot(env: RandomWalk,
+                        true_value: np.ndarray) -> None:
     '''
     Plot gradient MC w/ state aggregation
 
     Params
     ------
-    random_walk: RandomWalk
-    true_value: np.ndarray
-        true values
+    env: RandomWalk env
+    true_value: true values
     '''
     alpha = 2e-5
+    gamma = 1
     n_groups = 10
     n_eps = 100000
-    mu = np.zeros(n_states + 2)
-    state_agg = StateAggregationValueFunction(n_groups, random_walk.n_states)
+    mu = np.zeros(env.n_states + 2)
+    value_function = StateAggregationValueFunction(n_groups, env.n_states)
+    gradient_mc = GradientMonteCarlo(env, value_function, alpha, gamma, mu)
 
     for _ in trange(n_eps):
-        gradient_mc(state_agg, random_walk, alpha, mu)
+        gradient_mc.run()
 
     mu /= np.sum(mu)
-    value_funcs = [state_agg.get_value(state) for state in random_walk.states]
+    values = [value_function.get_value(state) for state in env.state_space]
 
     fig, ax1 = plt.subplots()
-    value_func_plot = ax1.plot(random_walk.states, value_funcs, 
+    value_func_plot = ax1.plot(env.state_space, values, 
         label=r'Approximate MC value $\hat{v}$', color='blue')
-    true_value_plot = ax1.plot(random_walk.states, true_value[1: -1], 
+    true_value_plot = ax1.plot(env.state_space, true_value[1: -1], 
         label=r'True value $v_\pi$', color='red')
     ax1.set_xlabel('State')
     ax1.set_ylabel('Value scale')
     ax2 = ax1.twinx()
-    state_dist_plot = ax2.plot(random_walk.states, mu[1: -1], 
+    state_dist_plot = ax2.plot(env.state_space, mu[1: -1], 
         label=r'State distribution $\mu$', color='gray')
     ax2.set_ylabel('Distribution scale')
     plots = value_func_plot + true_value_plot + state_dist_plot
@@ -548,99 +602,100 @@ def gradient_mc_state_aggregation_plot(random_walk, true_value):
     plt.close()
 
 
-def n_step_semi_gradient_td(value_func, random_walk, n, alpha, gamma):
-    '''
-    n-step semi-gradient TD
+# def n_step_semi_gradient_td(value_func, random_walk, n, alpha, gamma):
+#     '''
+#     n-step semi-gradient TD
 
-    Params
-    ------
-    value_func
-    random_walk: RandomWalk
-    n: int
-        number of step
-    alpha: float
-        step size
-    gamma: float
-        discount factor
-    '''
-    state = random_walk.start_state
-    states = [state]
+#     Params
+#     ------
+#     value_func
+#     random_walk: RandomWalk
+#     n: int
+#         number of step
+#     alpha: float
+#         step size
+#     gamma: float
+#         discount factor
+#     '''
+#     state = random_walk.start_state
+#     states = [state]
 
-    T = float('inf')
-    t = 0
-    rewards = [0] # dummy reward to save the next reward as R_{t+1}
+#     T = float('inf')
+#     t = 0
+#     rewards = [0] # dummy reward to save the next reward as R_{t+1}
 
-    while True:
-        if t < T:
-            action = random_policy(random_walk)
-            next_state, reward = random_walk.take_action(state, action)
-            states.append(next_state)
-            rewards.append(reward)
-            if random_walk.is_terminal(next_state):
-                T = t + 1
-        tau = t - n + 1
-        if tau >= 0:
-            G = 0
-            for i in range(tau + 1, min(tau + n, T) + 1):
-                G += np.power(gamma, i - tau - 1) * rewards[i]
-            if tau + n < T:
-                if random_walk.is_terminal(states[tau + n]):
-                    value = 0
-                else:
-                    value = value_func.get_value(states[tau + n])
-                G += np.power(gamma, n) * value
-            if not random_walk.is_terminal(states[tau]):
-                if random_walk.is_terminal(states[tau]):
-                    value = 0
-                else:
-                    value = value_func.get_value(states[tau])
-                delta = alpha * (G - value)
-                value_func.learn(states[tau], delta)
-        t += 1
-        if tau == T - 1:
-            break
-        state = next_state
+#     while True:
+#         if t < T:
+#             action = random_policy(random_walk)
+#             next_state, reward = random_walk.take_action(state, action)
+#             states.append(next_state)
+#             rewards.append(reward)
+#             if random_walk.is_terminal(next_state):
+#                 T = t + 1
+#         tau = t - n + 1
+#         if tau >= 0:
+#             G = 0
+#             for i in range(tau + 1, min(tau + n, T) + 1):
+#                 G += np.power(gamma, i - tau - 1) * rewards[i]
+#             if tau + n < T:
+#                 if random_walk.is_terminal(states[tau + n]):
+#                     value = 0
+#                 else:
+#                     value = value_func.get_value(states[tau + n])
+#                 G += np.power(gamma, n) * value
+#             if not random_walk.is_terminal(states[tau]):
+#                 if random_walk.is_terminal(states[tau]):
+#                     value = 0
+#                 else:
+#                     value = value_func.get_value(states[tau])
+#                 delta = alpha * (G - value)
+#                 value_func.learn(states[tau], delta)
+#         t += 1
+#         if tau == T - 1:
+#             break
+#         state = next_state
 
 
-def semi_gradient_td_0_plot(random_walk, true_value):
+def semi_gradient_td_0_plot(env: RandomWalk, 
+                        true_value: np.ndarray) -> None:
     '''
     Plot semi-gradient TD(0)
 
     Params
     ------
-    random_walk: RandomWalk
-    true_value: np.ndarray
-        true values
+    env: RandomWalk env
+    true_value: true values
     '''
     alpha = 2e-4
     n_groups = 10
     n_eps = 100000
     gamma = 1
-    state_agg = StateAggregationValueFunction(n_groups, random_walk.n_states)
+    value_function = StateAggregationValueFunction(n_groups, env.n_states)
+    semi_grad_td_0 = NStepSemiGradientTD(env, value_function, 1, alpha, gamma)
 
     for _ in trange(n_eps):
-        n_step_semi_gradient_td(state_agg, random_walk, 1, alpha, gamma)
+        semi_grad_td_0.run()
 
-    value_funcs = [state_agg.get_value(state) for state in random_walk.states]
+    values = [value_function.get_value(state) for state in env.state_space]
 
-    plt.plot(random_walk.states, value_funcs, 
+    plt.plot(env.state_space, values, 
         label=r'Approximate TD value $\hat{v}$', color='blue')
-    plt.plot(random_walk.states, true_value[1: -1], 
+    plt.plot(env.state_space, true_value[1: -1], 
         label=r'True value $v_\pi$', color='red')
     plt.xlabel('State')
     plt.ylabel('Value scale')
     plt.legend()
 
 
-def n_step_semi_gradient_td_plot(random_walk, true_value):
+def n_step_semi_gradient_td_plot(env: RandomWalk,
+                            true_value: np.ndarray) -> None:
     '''
     Plot n-step semi-gradient TD
 
     Params
     ------
-    random_walk: RandomWalk
-    true_value: np.ndarray
-        true values
+    env: RandomWalk env
+    true_value: true values
     '''
     n_eps = 10
     n_runs = 100
@@ -654,13 +709,15 @@ def n_step_semi_gradient_td_plot(random_walk, true_value):
         for alpha_i, alpha in enumerate(alphas):
             print(f'n={n}, alpha={alpha}')
             for _ in trange(n_runs):
-                state_agg = StateAggregationValueFunction(n_groups, random_walk.n_states)
-                for _ in trange(n_eps):
-                    n_step_semi_gradient_td(state_agg, random_walk, n, alpha, gamma)
-                    state_values = np.array([state_agg.get_value(state)
-                        for state in random_walk.states])
-                    rmse = np.sqrt(np.sum(np.power(state_values - true_value[1: -1], 2) 
-                        / random_walk.n_states))
+                value_function = StateAggregationValueFunction(n_groups, env.n_states)
+                n_step_semi_grad_td = NStepSemiGradientTD(env, value_function, n, alpha, gamma)
+
+                for _ in range(n_eps):
+                    n_step_semi_grad_td.run()
+                    values = np.array([value_function.get_value(state)
+                        for state in env.state_space])
+                    rmse = np.sqrt(np.sum(np.power(values - true_value[1: -1], 2) 
+                        / env.n_states))
                     errors[n_i, alpha_i] += rmse
 
     errors /= n_eps * n_runs
@@ -673,13 +730,22 @@ def n_step_semi_gradient_td_plot(random_walk, true_value):
     plt.legend()
 
 
-def semi_gradient_td_plot(random_walk, true_value):
+def semi_gradient_td_plot(env: RandomWalk,
+                    true_value: np.ndarray) -> None:
+    '''
+    Plot Semi-gradient TD methods
+
+    Params
+    ------
+    env: RandomWalk env
+    true_value: true values
+    '''
     plt.figure(figsize=(20, 10))
     plt.subplot(121)
-    semi_gradient_td_0_plot(random_walk, true_value)
+    semi_gradient_td_0_plot(env, true_value)
     plt.subplot(122)
-    n_step_semi_gradient_td_plot(random_walk, true_value)
-    plt.savefig('./semi_gradient_td.png')
+    n_step_semi_gradient_td_plot(env, true_value)
+    plt.savefig('./semi_gradient_td2.png')
     plt.close()
 
 
@@ -728,15 +794,15 @@ def gradient_mc_tilings(random_walk, true_value):
     plt.close()
 
 
-def gradient_mc_bases_plot(random_walk, true_value):
+def gradient_mc_bases_plot(env: RandomWalk,
+                    true_value: np.ndarray) -> None:
     '''
     Plot gradient Monte Carlo w/ Fourier and polynomial bases
 
     Params
     ------
-    random_walk: RandomWalk
-    true_value: np.ndarray
-        true values
+    env: RandomWalk env
+    true_value: true values
     '''
     orders = [5, 10, 20]
     n_runs = 1
@@ -752,35 +818,39 @@ def gradient_mc_bases_plot(random_walk, true_value):
         for i_order, order in enumerate(orders):
             print(f'{basis["method"]} basis, order={order}')
             for _ in range(n_runs):
-                value_func = BasesValueFunction(order, basis['method'], random_walk.n_states)
+                value_function = BasesValueFunction(order, basis['method'], env.n_states)
+                gradient_mc = GradientMonteCarlo(env, value_function, alpha, gamma)
+
                 for ep in trange(n_eps):
-                    gradient_mc(value_func, random_walk, basis['alpha'])
-                    state_values = np.array([value_func.get_value(state) 
-                        for state in random_walk.states])
-                    rmse = np.sqrt(np.mean(np.power(state_values - true_value[1: -1], 2)))
+                    gradient_mc.run()
+                    values = np.array([value_function.get_value(state) 
+                        for state in env.state_space])
+                    rmse = np.sqrt(np.mean(np.power(values - true_value[1: -1], 2)))
                     errors[i_basis, i_order, ep] += rmse
 
     errors /= n_runs
     for i_basis, basis in enumerate(bases):
         for i_order, order in enumerate(orders):
-            plt.plot(errors[i_basis, i_order, :], label='%s basis, order = %d' % (basis['method'], order))
+            plt.plot(errors[i_basis, i_order, :], label='%s basis, order = %d' \
+                % (basis['method'], order))
     plt.xlabel('Episodes')
     plt.ylabel('RMSE')
     plt.legend()
 
-    plt.savefig('./gradient_mc_bases.png')
+    plt.savefig('./gradient_mc_bases2.png')
     plt.close()
 
 
 if __name__ == '__main__':
     n_states = 1000
     start_state = 500
+    terminal_states = [0, n_states + 1]
     transition_radius = 100
-    random_walk = RandomWalk(n_states, start_state, transition_radius)
-    true_value = get_true_value(random_walk)
+    env = RandomWalk(n_states, start_state, terminal_states,
+        transition_radius=transition_radius)
+    true_value = get_true_value(env)
 
-    # gradient_mc_state_aggregation_plot(random_walk, true_value)
-    # semi_gradient_td_plot(random_walk, true_value)
-    gradient_mc_tilings(random_walk, true_value)
-    # gradient_mc_bases_plot(random_walk, true_value)
-    
+    # gradient_mc_state_aggregation_plot(env, true_value)
+    semi_gradient_td_plot(env, true_value)
+    # gradient_mc_tilings(env, true_value)
+    # gradient_mc_bases_plot(env, true_value)
