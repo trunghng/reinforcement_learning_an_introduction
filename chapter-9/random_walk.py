@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 class RandomWalk:
     '''
-    Random walk with a transition radius
+    Random walk env with a transition radius
     '''
 
 

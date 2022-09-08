@@ -408,7 +408,7 @@ def blocking_maze():
     plt.ylabel('Cumulative reward')
     plt.legend()
 
-    plt.savefig('./blocking_maze.png')
+    plt.savefig('./blocking_maze2.png')
     plt.close()
 
 
@@ -551,7 +551,7 @@ def mazes():
 
 
 if __name__ == '__main__':
-    dyna_maze()
+    # dyna_maze()
     blocking_maze()
-    shortcut_maze()
-    mazes()
+    # shortcut_maze()
+    # mazes()
