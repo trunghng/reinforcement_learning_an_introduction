@@ -292,17 +292,15 @@ class BasesValueFunction(ValueFunction):
 
 class TilingValueFunction(ValueFunction):
 
-    def __init__(self, n_states, n_tilings, tile_width, tiling_offset):
+    def __init__(self, n_tilings: int, tile_width: int, 
+                tiling_offset: int, n_states: int) -> None:
         '''
         Params:
         ------
-        n_state: int
-            number of states
-        n_tilings: int
-            number of tilings
-        tile_width: int
-            tile width
-        tiling_offset: int 
+        n_tilings: number of tilings
+        tile_width: tile width
+        tiling_offset: tiling offset
+        n_state: number of states
         '''
         self.n_tilings = n_tilings
         self.tile_width = tile_width
@@ -314,17 +312,20 @@ class TilingValueFunction(ValueFunction):
         # states activate the same tiles, have the same feature 
         # representation, and therefore the same value function.
         self.tiling_size = n_states // tile_width + 1
-        self.w = np.zeros((n_tilings, self.tiling_size))
+        self.weights = np.zeros((n_tilings, self.tiling_size))
 
 
-    def get_active_tiles(self, state):
+    def _get_active_tiles(self, state: int) -> List[int]:
         '''
-        Get active tile indices
+        Get list of (indices of) active tiles
 
         Params
         ------
-        state: int
-            current state
+        state: state of the agent
+
+        Return
+        ------
+        active_tiles: list of (indices of) active tiles
         '''
         active_tiles = []
 
@@ -336,39 +337,40 @@ class TilingValueFunction(ValueFunction):
         return active_tiles
 
 
-    def get_value(self, state):
+    def get_value(self, state: int) -> float:
         '''
-        Get value function at state @state
+        Get value of the state @state
 
         Params
         ------
-        state: int
-            current state
+        state: state of the agent
+
+        Return
+        ------
+        value: value of the state @state
         '''
         value = 0
-        active_tiles = self.get_active_tiles(state)
+        active_tiles = self._get_active_tiles(state)
         for tiling_idx, tile_idx in enumerate(active_tiles):
-            value += self.w[tiling_idx, tile_idx]
+            value += self.weights[tiling_idx, tile_idx]
 
         return value
 
 
-    def update(self, state, error):
+    def update(self, state: int, error: float) -> None:
         '''
         Update weight vector
 
         Params
         ------
-        state: int
-            current state
-        error: float
-            update amount
+        state: state of the agent
+        error: update amount
         '''
-        active_tiles = self.get_active_tiles(state)
+        active_tiles = self._get_active_tiles(state)
         error /= self.n_tilings
 
         for tiling_idx in range(self.n_tilings):
-            self.w[tiling_idx, active_tiles[tiling_idx]] += delta
+            self.weights[tiling_idx, active_tiles[tiling_idx]] += error
 
 
 class Agent(ABC):
@@ -695,16 +697,16 @@ def semi_gradient_td_plot(env: RandomWalk,
     plt.close()
 
 
-def gradient_mc_tilings(random_walk, true_value):
+def gradient_mc_tilings_plot(env: RandomWalk,
+                    true_value: np.ndarray) -> None:
     '''
     Plot gradient Monte Carlo w/ single and multiple tilings
     The single tiling method is basically state aggregation.
 
     Params
     ------
-    random_walk: RandomWalk
-    true_value: np.ndarray
-        true values
+    env: RandomWalk env
+    true_value: true values
     '''
     n_runs = 1
     n_eps = 5000
@@ -718,15 +720,17 @@ def gradient_mc_tilings(random_walk, true_value):
 
     for _ in range(n_runs):
         value_functions = [
-            StateAggregationValueFunction(random_walk.n_states // tile_width, random_walk.n_states), 
-            TilingValueFunction(random_walk.n_states, n_tilings, tile_width, tiling_offset)
+            StateAggregationValueFunction(env.n_states // tile_width, env.n_states), 
+            TilingValueFunction(n_tilings, tile_width, tiling_offset, env.n_states)
         ]
 
         for i in range(len(value_functions)):
+
             for ep in trange(n_eps):
                 alpha = 1.0 / (ep + 1)
-                gradient_mc(value_functions[i], random_walk, alpha)
-                values = [value_functions[i].get_value(state) for state in random_walk.states]
+                gradient_mc = GradientMonteCarlo(env, value_functions[i], alpha)
+                gradient_mc.run()
+                values = [value_functions[i].get_value(state) for state in env.state_space]
                 errors[i][ep] += np.sqrt(np.mean(np.power(true_value[1: -1] - values, 2)))
 
     errors /= n_runs
@@ -798,5 +802,5 @@ if __name__ == '__main__':
 
     gradient_mc_state_aggregation_plot(env, true_value)
     semi_gradient_td_plot(env, true_value)
-    gradient_mc_tilings(env, true_value)
+    gradient_mc_tilings_plot(env, true_value)
     gradient_mc_bases_plot(env, true_value)
