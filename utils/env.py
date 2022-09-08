@@ -36,17 +36,16 @@ class RandomWalk(Env):
                 terminal_states: List[int], 
                 action_space: List[int]=[-1, 1],
                 reward_space: List[float]=[-1, 0, 1],
-                transition_probs: Dict[int, float]={-1: 0.5, 1: 0.5},
-                transition_radius: int=None) -> None:
+                transition_probs: Dict[int, float]={-1: 0.5, 1: 0.5}) -> None:
         '''
         Params
         ------
         n_states: number of state
         start_state: start state
         terminal_states: list of terminal states
-        actions: action space
+        action_space: action space
+        reward_space: reward space
         transition_probs: transition probabilities
-        transition_radius: transition radius
         '''
         self.n_states = n_states
         self.state_space = np.arange(1, n_states + 1)
@@ -55,7 +54,6 @@ class RandomWalk(Env):
         self.action_space = action_space
         self.reward_space = reward_space
         self.transition_probs = transition_probs
-        self.transition_radius = transition_radius
         self.reset()
 
 
@@ -97,6 +95,59 @@ class RandomWalk(Env):
         else:
             reward = self.reward_space[1]
         return reward
+
+
+    def step(self, action: int, state: int=None) \
+            -> Tuple[int, float, bool]:
+
+        '''
+        Take action
+
+        Params
+        ------
+        action: action taken
+        state: state of the agent
+
+        Return
+        ------
+        (next_state, reward, terminated): tuple of next state, 
+            reward corresponding, and is terminated
+        '''
+        assert action in self.action_space, "Invalid action!"
+        if state is not None:
+            self.state = state
+        next_state = self.state + action
+        self.state = next_state
+        reward = self._get_reward(next_state)
+        terminated = self._terminated()
+        return next_state, reward, terminated
+
+
+class TransitionRadiusRandomWalk(RandomWalk):
+    '''
+    Random walk with transition radius env
+    '''
+
+    def __init__(self, n_states: int, start_state: int,
+                terminal_states: List[int], 
+                action_space: List[int]=[-1, 1],
+                reward_space: List[float]=[-1, 0, 1],
+                transition_probs: Dict[int, float]={-1: 0.5, 1: 0.5},
+                transition_radius: int=None) -> None:
+        '''
+        Params
+        ------
+        n_states: number of state
+        start_state: start state
+        terminal_states: list of terminal states
+        action_space: action space
+        reward_space: reward_space
+        transition_probs: transition probabilities
+        transition_radius: transition radius
+        '''
+        super().__init__(n_states, start_state, terminal_states, 
+            action_space, reward_space, transition_probs)
+        self.transition_radius = transition_radius
 
 
     def get_state_transition(self, state: int, action: int) -> Dict[int, float]:
@@ -150,20 +201,39 @@ class RandomWalk(Env):
 
         Return
         ------
-        (next_state, reward, terminated): tuple of next state, 
-            reward corresponding, and is terminated
+        (next_state, reward, terminated): next state, 
+            reward corresponding, and whether it is terminal state
         '''
         assert action in self.action_space, "Invalid action!"
         if state is not None:
             self.state = state
-        if self.transition_radius is None:
-            next_state = self.state + action
-        else:
-            step = np.random.randint(1, self.transition_radius + 1)
-            next_state = min(self.terminal_states[1], 
-                max(self.terminal_states[0], self.state + action * step))
+        step = np.random.randint(1, self.transition_radius + 1)
+        next_state = min(self.terminal_states[1], 
+            max(self.terminal_states[0], self.state + action * step))
         self.state = next_state
         reward = self._get_reward(next_state)
         terminated = self._terminated()
         return next_state, reward, terminated
+
+
+class GridWorld(Env):
+    '''
+    Gridworld env
+    '''
+
+    def __init__(self):
+        pass
+
+
+    def reset(self) -> None:
+        pass
+
+
+    def _terminated(self) -> bool:
+        pass
+
+
+    def step(self, action: int) -> Tuple[int, float, bool]:
+        pass
+
 

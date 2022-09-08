@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm, trange
 
-from env import RandomWalk
+from env import TransitionRadiusRandomWalk as RandomWalk
 
 
 def get_true_value(env: RandomWalk) -> np.ndarray:
@@ -787,7 +787,7 @@ def gradient_mc_bases_plot(env: RandomWalk,
     plt.ylabel('RMSE')
     plt.legend()
 
-    plt.savefig('./gradient_mc_bases.png')
+    plt.savefig('./gradient_mc_bases2.png')
     plt.close()
 
 
@@ -800,7 +800,7 @@ if __name__ == '__main__':
         transition_radius=transition_radius)
     true_value = get_true_value(env)
 
-    gradient_mc_state_aggregation_plot(env, true_value)
-    semi_gradient_td_plot(env, true_value)
-    gradient_mc_tilings_plot(env, true_value)
+    # gradient_mc_state_aggregation_plot(env, true_value)
+    # semi_gradient_td_plot(env, true_value)
+    # gradient_mc_tilings_plot(env, true_value)
     gradient_mc_bases_plot(env, true_value)

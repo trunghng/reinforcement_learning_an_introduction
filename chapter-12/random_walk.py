@@ -11,42 +11,42 @@ from tqdm import trange
 from env import RandomWalk
 
 
-def get_true_value(random_walk: RandomWalk, gamma: float) -> np.ndarray:
+def get_true_value(env: RandomWalk, gamma: float) -> np.ndarray:
     '''
-    Calculate true value of @random_walk by Bellman equations
+    Calculate true value of @env by Bellman equations
 
     Params
     ------
-    random_walk: RandomWalk env
+    env: RandomWalk env
     gamma: discount factor
 
     Return
     ------
     true_value: true value of all of the states
     '''
-    P = np.zeros((random_walk.n_states, random_walk.n_states))
-    r = np.zeros((random_walk.n_states + 2, ))
-    true_value = np.zeros((random_walk.n_states + 2, ))
-    random_walk.reset()
+    P = np.zeros((env.n_states, env.n_states))
+    r = np.zeros((env.n_states + 2, ))
+    true_value = np.zeros((env.n_states + 2, ))
+    env.reset()
     
-    for state in random_walk.state_space:
+    for state in env.state_space:
         trajectory = []
 
-        for action in random_walk.action_space:
-            next_state, reward, terminated = random_walk.step(action, state)
+        for action in env.action_space:
+            next_state, reward, terminated = env.step(action, state)
             trajectory.append((action, next_state, reward, terminated))
 
         for action, next_state, reward, terminated in trajectory:
             if not terminated:
-                P[state - 1, next_state - 1] = random_walk.transition_probs[action] * 1
+                P[state - 1, next_state - 1] = env.transition_probs[action] * 1
                 r[next_state] = reward
         
-    u = np.zeros((random_walk.n_states, ))
-    u[0] = random_walk.transition_probs[-1] * 1 * (-1 + gamma * random_walk.reward_space[0])
-    u[-1] = random_walk.transition_probs[1] * 1 * (1 + gamma * random_walk.reward_space[2])
+    u = np.zeros((env.n_states, ))
+    u[0] = env.transition_probs[-1] * 1 * (-1 + gamma * env.reward_space[0])
+    u[-1] = env.transition_probs[1] * 1 * (1 + gamma * env.reward_space[2])
 
     r = r[1:-1]
-    true_value[1:-1] = np.linalg.inv(np.identity(random_walk.n_states) 
+    true_value[1:-1] = np.linalg.inv(np.identity(env.n_states) 
         - gamma * P).dot(0.5 * (P.dot(r) + u))
     true_value[0] = true_value[-1] = 0
 
