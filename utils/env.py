@@ -316,6 +316,15 @@ class RaceTrack(Env):
 
     def step(self, action: Tuple[int, int]) \
             -> Tuple[np.ndarray, float, bool]:
+        '''
+        Take action
+
+        Return
+        ------
+        next_state: next state
+        reward: corresponding reward
+        terminated: whether the car has finished the track
+        '''
         assert action in self.action_space, "Invalid action!"
 
         postion, velocity = self.state[0], self.state[1]
@@ -339,5 +348,6 @@ class RaceTrack(Env):
             self.reset()
         elif self._terminated():
             terminated = True
+        next_state = self.state
 
         return self.state, reward, terminated
