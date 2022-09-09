@@ -437,7 +437,7 @@ class GradientMonteCarlo(Agent):
 
     def __init__(self, env: RandomWalk,
                 value_function: ValueFunction,
-                alpha: float, gamma: float=None,
+                alpha: float, gamma: float,
                 mu: np.ndarray=None) -> None:
         '''
         Params
@@ -478,8 +478,8 @@ class GradientMonteCarlo(Agent):
             action = self.random_policy()
             state = self.env.state
             next_state, reward, terminated = self.env.step(action)
-            for history in trajectory:
-                history[1] += reward
+            for t in range(len(trajectory)):
+                trajectory[t][1] += np.power(self.gamma, len(trajectory) - t) * reward
             trajectory.append([state, reward])
 
             if terminated:
@@ -574,11 +574,12 @@ def gradient_mc_state_aggregation_plot(env: RandomWalk,
     true_value: true values
     '''
     alpha = 2e-5
+    gamma = 1
     n_groups = 10
     n_eps = 100000
     mu = np.zeros(env.n_states + 2)
     value_function = StateAggregationValueFunction(n_groups, env.n_states)
-    gradient_mc = GradientMonteCarlo(env, value_function, alpha, mu)
+    gradient_mc = GradientMonteCarlo(env, value_function, alpha, gamma, mu)
 
     for _ in trange(n_eps):
         gradient_mc.run()
@@ -713,6 +714,7 @@ def gradient_mc_tilings_plot(env: RandomWalk,
     n_tilings = 50
     tile_width = 200
     tiling_offset = 4
+    gamma = 1
 
     plot_labels = ['state aggregation (one tiling)', 'tile coding (50 tilings)']
 
@@ -728,7 +730,7 @@ def gradient_mc_tilings_plot(env: RandomWalk,
 
             for ep in trange(n_eps):
                 alpha = 1.0 / (ep + 1)
-                gradient_mc = GradientMonteCarlo(env, value_functions[i], alpha)
+                gradient_mc = GradientMonteCarlo(env, value_functions[i], alpha, gamma)
                 gradient_mc.run()
                 values = [value_functions[i].get_value(state) for state in env.state_space]
                 errors[i][ep] += np.sqrt(np.mean(np.power(true_value[1: -1] - values, 2)))
@@ -757,6 +759,7 @@ def gradient_mc_bases_plot(env: RandomWalk,
     orders = [5, 10, 20]
     n_runs = 1
     n_eps = 5000
+    gamma = 1
 
     bases = [
         {'method': 'Polynomial', 'alpha': 1e-4},
@@ -769,7 +772,7 @@ def gradient_mc_bases_plot(env: RandomWalk,
             print(f'{basis["method"]} basis, order={order}')
             for _ in range(n_runs):
                 value_function = BasesValueFunction(order, basis['method'], env.n_states)
-                gradient_mc = GradientMonteCarlo(env, value_function, basis['alpha'])
+                gradient_mc = GradientMonteCarlo(env, value_function, basis['alpha'], gamma)
 
                 for ep in trange(n_eps):
                     gradient_mc.run()
@@ -787,7 +790,7 @@ def gradient_mc_bases_plot(env: RandomWalk,
     plt.ylabel('RMSE')
     plt.legend()
 
-    plt.savefig('./gradient_mc_bases2.png')
+    plt.savefig('./gradient_mc_bases.png')
     plt.close()
 
 
@@ -800,7 +803,7 @@ if __name__ == '__main__':
         transition_radius=transition_radius)
     true_value = get_true_value(env)
 
-    # gradient_mc_state_aggregation_plot(env, true_value)
-    # semi_gradient_td_plot(env, true_value)
-    # gradient_mc_tilings_plot(env, true_value)
+    gradient_mc_state_aggregation_plot(env, true_value)
+    semi_gradient_td_plot(env, true_value)
+    gradient_mc_tilings_plot(env, true_value)
     gradient_mc_bases_plot(env, true_value)

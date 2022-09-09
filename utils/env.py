@@ -35,7 +35,7 @@ class RandomWalk(Env):
     def __init__(self, n_states: int, start_state: int,
                 terminal_states: List[int], 
                 action_space: List[int]=[-1, 1],
-                reward_space: List[float]=[-1, 0, 1],
+                reward_space: List[float]=[1, 0, -1],
                 transition_probs: Dict[int, float]={-1: 0.5, 1: 0.5}) -> None:
         '''
         Params
@@ -67,11 +67,6 @@ class RandomWalk(Env):
     def _terminated(self) -> bool:
         '''
         Whether agent is in terminal state
-
-        Return
-        ------
-        terminated: whether the state of the agent
-            is a terminal state
         '''
         return self.state in self.terminal_states
 
@@ -88,10 +83,10 @@ class RandomWalk(Env):
         ------
         reward: reward corresponding
         '''
-        if next_state == self.terminal_states[0]:
+        if next_state == self.terminal_states[1]:
             reward = self.reward_space[0]
-        elif next_state == self.terminal_states[1]:
-            reward = self.reward_space[2]
+        elif next_state == self.terminal_states[0]:
+            reward = self.reward_space[-1]
         else:
             reward = self.reward_space[1]
         return reward
@@ -110,8 +105,9 @@ class RandomWalk(Env):
 
         Return
         ------
-        (next_state, reward, terminated): tuple of next state, 
-            reward corresponding, and is terminated
+        next_state: next state
+        reward: corresponding reward
+        reward: whether next state is a terminal state
         '''
         assert action in self.action_space, "Invalid action!"
         if state is not None:
@@ -201,8 +197,9 @@ class TransitionRadiusRandomWalk(RandomWalk):
 
         Return
         ------
-        (next_state, reward, terminated): next state, 
-            reward corresponding, and whether it is terminal state
+        next_state: next state
+        reward: corresponding reward
+        reward: whether next state is a terminal state
         '''
         assert action in self.action_space, "Invalid action!"
         if state is not None:

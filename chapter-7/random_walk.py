@@ -84,7 +84,7 @@ class NStepTemporalDifference:
 
     def random_policy(self) -> int:
         '''
-        Policy choosing action randomly
+        Policy choosing actions randomly
 
         Return
         ------
