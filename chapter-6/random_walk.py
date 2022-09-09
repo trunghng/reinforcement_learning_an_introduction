@@ -8,7 +8,7 @@ from typing import List, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+from tqdm import trange
 
 from env import RandomWalk
 
@@ -273,7 +273,7 @@ def plot_rmse(env: RandomWalk, true_value: np.ndarray,
             print(f'{method["name"]} method, alpha={alpha}', end='')
 
             total_errors = np.zeros(n_eps)
-            for _ in tqdm(range(n_runs)):
+            for _ in trange(n_runs):
                 value_function_ = value_function.copy()
                 agent = method['agent'](env, value_function_, alpha, gamma)
                 errors = []
@@ -315,7 +315,7 @@ def plot_rmse_batch_updating(env: RandomWalk,
     for method in methods:
         print(f'{method["name"]} method', end='')
         total_errors = np.zeros(n_eps)
-        for _ in tqdm(range(n_runs)):
+        for _ in trange(n_runs):
             value_function_ = value_function.copy()
             errors = []
             state_history = []

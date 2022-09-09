@@ -13,17 +13,17 @@ class Env(ABC):
 
 
     @abstractmethod
-    def reset(self) -> None:
+    def reset(self):
         pass
 
 
     @abstractmethod
-    def _terminated(self) -> bool:
+    def _terminated(self):
         pass
 
 
     @abstractmethod
-    def step(self, action: int) -> Tuple[int, float, bool]:
+    def step(self):
         pass
 
 
@@ -57,11 +57,12 @@ class RandomWalk(Env):
         self.reset()
 
 
-    def reset(self) -> None:
+    def reset(self) -> int:
         '''
         Reset env
         '''
         self.state = self.start_state
+        return self.state
 
 
     def _terminated(self) -> bool:
@@ -233,4 +234,110 @@ class GridWorld(Env):
     def step(self, action: int) -> Tuple[int, float, bool]:
         pass
 
+class RaceTrack(Env):
+    '''
+    Race track env
+    '''
 
+    def __init__(self, track, velocity_change_prob=None):
+        self.max_velocity = 4
+        self.min_velocity = 0
+        self.track, self.starting_line, \
+            self.finish_line = self._load_track(track)
+        self.reset()
+        self.action_space = [(-1, -1), (-1, 0), (-1, 1),
+                            (0, -1), (0, 0), (0, 1),
+                            (1, -1), (1, 0), (1, 1)]
+        self.velocity_unchanged_prob = velocity_unchanged_prob
+
+
+    def _load_track(self, track: List[str]) -> Tuple[np.ndarray, \
+            List[Tuple[int, int]], List[Tuple[int, int]]]:
+        '''
+        Load raw track
+
+        Return
+        ------
+        track_: race track
+        starting_line: starting line
+        finish_line: finish line
+        '''
+        y_len, x_len = len(track), len(track[0])
+        track_ = np.zeros((x_len, y_len))
+        starting_line = []
+        finish_line = []
+
+        for y in range(y_len):
+            for x in range(x_len):
+                pt = grid[y][x]
+                if pt == 'W':
+                    track_[x, y] = -1
+                elif pt == 'o':
+                    track_[x, y] = 1
+                elif pt == '-':
+                    track_[x, y] = 0
+                else:
+                    track_[x, y] = 2
+        # rotate the track in order to sync the track with actions
+        track_ = np.fliplr(track_)
+        for y in range(y_len):
+            for x in range(x_len):
+                if track_[x, y] == 0:
+                    starting_line.append((x, y))
+                elif track_[x, y] == 2:
+                    finish_line.append((x, y))
+
+        return track_, starting_line, finish_line
+
+
+    def reset(self) -> np.ndarray:
+        index = np.random.choice(len(self.starting_line))
+        position = self.starting_line[index]
+        velocity = [0, 0]
+        self.state = np.array([position, velocity])
+        return self.state
+
+
+    def _terminated(self) -> bool:
+        '''
+        Whether the car has reached the finish line
+        '''
+        position = self.state[0]
+        return position in self.finish_line
+
+
+    def _hit_wall(self) -> bool:
+        '''
+        Whether the car has hit the wall
+        '''
+        position = self.state[0]
+        return self.track[position[0], position[1]] == -1
+
+
+    def step(self, action: Tuple[int, int]) \
+            -> Tuple[np.ndarray, float, bool]:
+        assert action in self.action_space, "Invalid action!"
+
+        postion, velocity = self.state[0], self.state[1]
+
+        if self.velocity_unchanged_prob is not None:
+            if not np.random.binomial(1, self.velocity_unchanged_prob):
+                velocity += np.array(action)
+                velocity = np.minimum(velocity, self.max_velocity)
+                velocity = np.maximum(velocity, self.min_velocity)
+
+        for tstep in range(0, self.max_velocity + 1):
+            t = tstep / self.max_velocity
+            position += np.round(velocity * t)
+
+        self.state = np.array([position, velocity])
+
+        reward = -1.0
+
+        terminated = False
+        if self._hit_wall():
+            self.reset()
+        elif self._terminated():
+            terminated = True
+
+        return self.state, reward, terminated
