@@ -234,6 +234,7 @@ class GridWorld(Env):
     def step(self, action: int) -> Tuple[int, float, bool]:
         pass
 
+
 class RaceTrack(Env):
     '''
     Race track env
@@ -247,20 +248,19 @@ class RaceTrack(Env):
         track: raw track
         velocity_unchanged_prob: velocity unchanged probability
         '''
-        self.max_velocity = 4
-        self.min_velocity = 0
         self.position_space, self.starting_line, \
             self.finish_line = self._load_track(track)
+        self.max_position = np.array(self.position_space.shape) - 1
+        self.min_position = np.array([0, 0])
+        self.max_velocity = 4
+        self.min_velocity = 0
         self.velocity_space = np.array([[(i, j) 
             for i in range(self.min_velocity, self.max_velocity + 1)] 
             for j in range(self.min_velocity, self.max_velocity + 1)])
-        self.reset()
-        self.action_space = [(-1, -1), (-1, 0), (-1, 1),
-                            (0, -1), (0, 0), (0, 1),
-                            (1, -1), (1, 0), (1, 1)]
+        self.action_space_ = [(-1, -1), (-1, 0), (-1, 1), (0, -1),
+                            (0, 0), (0, 1), (1, -1), (1, 0), (1, 1)]
+        self.action_space = list(range(len(self.action_space_)))
         self.velocity_unchanged_prob = velocity_unchanged_prob
-        self.hashed_state_space = self._get_hashed_state_space()
-        self.hashed_action_space = self._get_hashed_action_space()
 
 
     def _load_track(self, track: List[str]) -> Tuple[np.ndarray, \
@@ -310,7 +310,7 @@ class RaceTrack(Env):
         position = self.starting_line[index]
         velocity = [0, 0]
         self.state = np.array([position, velocity])
-        return self.state
+        return np.copy(self.state)
 
 
     def _terminated(self) -> bool:
@@ -318,7 +318,7 @@ class RaceTrack(Env):
         Whether the car has reached the finish line
         '''
         position = self.state[0]
-        return position in self.finish_line
+        return tuple(position) in self.finish_line
 
 
     def _hit_wall(self) -> bool:
@@ -342,70 +342,29 @@ class RaceTrack(Env):
         '''
         assert action in self.action_space, "Invalid action!"
 
-        postion, velocity = self.state[0], self.state[1]
+        position, velocity = self.state[0], self.state[1]
 
-        if self.velocity_unchanged_prob is not None:
-            if not np.random.binomial(1, self.velocity_unchanged_prob):
-                velocity += np.array(action)
-                velocity = np.minimum(velocity, self.max_velocity)
-                velocity = np.maximum(velocity, self.min_velocity)
+        if (self.velocity_unchanged_prob is not None and not \
+            np.random.binomial(1, self.velocity_unchanged_prob)) \
+            or self.velocity_unchanged_prob is None:
+            action_ = self.action_space_[action]
+            velocity += np.array(action_)
+            velocity = np.minimum(velocity, self.max_velocity)
+            velocity = np.maximum(velocity, self.min_velocity)
 
-        for tstep in range(0, self.max_velocity + 1):
-            t = tstep / self.max_velocity
-            position += np.round(velocity * t)
+        next_position = position + velocity
+        next_position = np.minimum(next_position, self.max_position)
+        next_position = np.maximum(next_position, self.min_position)
+        self.state = np.array([next_position, velocity])
 
-        self.state = np.array([position, velocity])
+        if self._terminated():
+            terminated = True
+        else:
+            terminated = False
+            if self._hit_wall():
+                self.reset()
 
         reward = -1.0
+        next_state = np.copy(self.state)
 
-        terminated = False
-        if self._hit_wall():
-            self.reset()
-        elif self._terminated():
-            terminated = True
-        next_state = self.state
-
-        return self.state, reward, terminated
-
-
-    def _hash(self, state: np.ndarray) -> int:
-        '''
-        Get the hash value of the state @state
-        '''
-        p_x, p_y = self.position_space.shape
-        v_x, v_y, _ = self.velocity_space.shape
-        position, velocity = state[0], state[1]
-
-        position_hash_value = position[0] * p_y + position[1]
-        velocity_hash_value = velocity[0] * v_y + velocity[1]
-
-        state_hash_value = position_hash_value * v_x * v_y \
-            + velocity_hash_value
-
-        return state_hash_value
-
-
-    def _get_hashed_state_space(self) -> np.ndarray:
-        p_x, p_y = self.position_space.shape
-        v_x, v_y, _ = self.velocity_space.shape
-        hashed_state_space = list(range(p_x * p_y * v_x * v_y))
-
-        for p_xi in range(p_x):
-            for p_yi in range(p_y):
-                for v_xi in range(v_x):
-                    for v_yi in range(v_y):
-                        state = np.array([(p_xi, p_yi), (v_xi, v_yi)])
-                        hash_value = self._hash(state)
-                        hashed_state_space[hash_value] = state
-
-        return np.array(hashed_state_space)
-
-
-    def _get_hashed_action_space(self) -> np.ndarray:
-        hashed_action_space = list(range(9))
-
-        for action in self.action_space:
-            hash_value = (action[0] + 1) * 3 + action[1] + 1
-            hashed_action_space[hash_value] = action
-
-        return np.array(hashed_action_space)
+        return next_state, reward, terminated
