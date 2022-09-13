@@ -1,53 +1,55 @@
+import sys
+from os.path import dirname, join, realpath
+dir_path = dirname(dirname(realpath(__file__)))
+sys.path.insert(1, join(dir_path, 'utils'))
+
 import numpy as np
 
-GRID_SIZE = 4
-actions = {'north': (-1, 0), 'east': (0, 1), 'south': (1, 0), 'west': (0, -1)}
-reward = -1
-ACTION_PROB = 0.25
-GAMMA = 1
+from env import GridWorld
 
 
-def is_terminal(state):
-    return state == (0, 0) or state == (GRID_SIZE - 1, GRID_SIZE - 1)
-
-
-def iterative_policy_evaluation(theta):
-    """
+def iterative_policy_evaluation(env: GridWorld, gamma: float, theta: float) -> np.ndarray:
+    '''
     In-place (asynchronous) iterative policy evaluation for equiproable policy
-    """
-    V = np.zeros((GRID_SIZE, GRID_SIZE))
+    '''
+    value_function = np.zeros((env.height, env.width))
 
     while True:
         delta = 0
-        for i in range(GRID_SIZE):
-            for j in range(GRID_SIZE):
-                if is_terminal((i, j)):
-                    continue
 
-                old_value = V[i, j]
+        for state in env.state_space:
+            if env.terminated(state):
+                continue
 
-                next_states = []
-                for action in actions:
-                    if i + actions[action][0] == GRID_SIZE or i + actions[action][0] == -1 \
-                        or j + actions[action][1] == GRID_SIZE or j + actions[action][1] == -1:
-                        next_states.append((i, j))
-                    else:
-                        next_states.append((i + actions[action][0], j + actions[action][1]))
-                value = 0
-                for state in next_states:
-                    value += ACTION_PROB * 1 * (reward + GAMMA * V[state[0], state[1]])
-                V[i, j] = value
+            x, y = state[0], state[1]
+            old_value = value_function[x, y]
+            next_history = []
 
-                delta = max(delta, abs(old_value - V[i, j]))
+            for action in env.action_space:
+                env.state = np.copy(state)
+                next_state, reward, _ = env.step(action)
+                next_history.append((next_state, action, reward))
+
+            value = 0
+            for next_state, action, reward in next_history:
+                value += env.transition_probs[action] * 1 * (reward +
+                    gamma * value_function[next_state[0], next_state[1]])
+            value_function[x, y] = value
+            delta = max(delta, abs(old_value - value_function[x, y]))
 
         if delta < theta:
             break
 
-    return V
+    return value_function
 
 
 if __name__ == '__main__':
+    height = width = 4
+    terminal_states = [(0, 0), (height - 1, width - 1)]
+    env = GridWorld(height, width, terminal_states=terminal_states)
+    gamma = 1
     theta = 1e-5
-    state_value_func = iterative_policy_evaluation(theta)
-    state_value_func = np.around(np.reshape(state_value_func, (GRID_SIZE, GRID_SIZE)), decimals=1)
-    print(state_value_func)
+    value_function = iterative_policy_evaluation(env, gamma, theta)
+    value_function = np.around(np.reshape(
+        value_function, (height, width)), decimals=1)
+    print(value_function)

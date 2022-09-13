@@ -364,20 +364,20 @@ class GridWorld(Env):
     def __init__(self, height: int, 
                 width: int, 
                 start_state: Tuple[int, int]=None, 
-                terminal_state: Tuple[int, int]=None,
+                terminal_states: List[Tuple[int, int]]=None,
                 transition_probs: List[float]=[0.25, 0.25, 0.25, 0.25],
                 wind_dist: List[int]=None,
                 cliff: List[Tuple[int, int]]=None,
                 obstacles: List[Tuple[int, int]]=None,
                 special_states: Tuple[List[Tuple[int, int]], \
-                    List[Tuple[int, int]], List[float]]=None) -> None:
+                    List[Tuple[int, int]], List[float]]=[None, None, None]) -> None:
         '''
         Params
         ------
         height: vertical length of the grid
         width: horizontal length of the grid
         start_state: start state
-        terminal_state: terminal state
+        terminal_states: list of terminal states
         transition_probs: transition probabilities
         wind_dist: wind distribution
         cliff: cliff region
@@ -387,7 +387,7 @@ class GridWorld(Env):
         self.width = width
         self.height = height
         self.start_state = np.array(start_state)
-        self.terminal_state = np.array(terminal_state)
+        self.terminal_states = [np.array(state) for state in terminal_states]
         self.state_space = [np.array([i, j]) for i in range(height) 
                                 for j in range(width)]
         self.action_space_ = [(-1, 0), (0, 1), (1, 0), (0, -1)]
@@ -407,7 +407,17 @@ class GridWorld(Env):
 
 
     def _terminated(self) -> bool:
-        return self.state == self.terminal_state
+        for state in self.terminal_states:
+            if (self.state == state).all():
+                return True
+        return False
+
+
+    def terminated(self, state) -> bool:
+        for state_ in self.terminal_states:
+            if (state == state_).all():
+                return True
+        return False
 
 
     def _get_reward(self) -> float:
