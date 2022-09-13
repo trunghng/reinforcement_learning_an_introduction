@@ -189,7 +189,6 @@ if __name__ == '__main__':
 	n_eps = 10000
 	off_policy_mc_control = OffPolicyMonteCarloControl(env, gamma, epsilon, n_eps)
 	policy = off_policy_mc_control.run()
-	# policy = off_policy_MC_control(env, n_eps, gamma)
 
 	trace = np.zeros((policy.shape[0], policy.shape[1]))
 
