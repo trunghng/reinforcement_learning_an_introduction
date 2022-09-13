@@ -363,8 +363,8 @@ class GridWorld(Env):
 
     def __init__(self, height: int, 
                 width: int, 
-                start_state: Tuple[int, int], 
-                terminal_state: Tuple[int, int],
+                start_state: Tuple[int, int]=None, 
+                terminal_state: Tuple[int, int]=None,
                 transition_probs: List[float]=[0.25, 0.25, 0.25, 0.25],
                 wind_dist: List[int]=None,
                 cliff: List[Tuple[int, int]]=None,
@@ -388,12 +388,14 @@ class GridWorld(Env):
         self.height = height
         self.start_state = np.array(start_state)
         self.terminal_state = np.array(terminal_state)
+        self.state_space = [np.array([i, j]) for i in range(height) 
+                                for j in range(width)]
         self.action_space_ = [(-1, 0), (0, 1), (1, 0), (0, -1)]
         self.action_space = list(range(len(self.action_space_)))
         self.high = np.array([height, width]) - 1
         self.low = np.array([0, 0])
         self.transition_probs = transition_probs
-        self.wind_dist = win
+        self.wind_dist = wind_dist
         self.cliff = cliff
         self.obstacles = obstacles
         self.states_, self.next_states_, self.rewards_ = special_states
@@ -416,8 +418,8 @@ class GridWorld(Env):
         assert action in self.action_space, "Invalid action!"
 
         state_ = (self.state[0], self.state[1])
-        if self.states_ is not None state_ in self.states_:
-            index = self.state_.index(state_)
+        if self.states_ is not None and state_ in self.states_:
+            index = self.states_.index(state_)
             next_state = np.array(self.next_states_[index])
             reward = self.rewards_[index]
         elif self.cliff is not None and state_ in self.cliff:
@@ -434,7 +436,8 @@ class GridWorld(Env):
 
             reward = self._get_reward()
 
-            if (self.next_state[0], self.next_state[1]) in self.obstacles:
+            if self.obstacles is not None and \
+                (next_state[0], next_state[1]) in self.obstacles:
                 next_state = self.state
 
 

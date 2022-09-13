@@ -1,59 +1,62 @@
+import sys
+from os.path import dirname, join, realpath
+dir_path = dirname(dirname(realpath(__file__)))
+sys.path.insert(1, join(dir_path, 'utils'))
+
 import numpy as np
 
-GRID_SIZE = 5
-ACTION_PROB = 0.25
-GAMMA = 0.9  # discount factor
-ACTIONS = {'north': (-1, 0), 'east': (0, 1), 'south': (1, 0), 'west': (0, -1)}
-REWARDS = {'changed': 0, 'unchanged': -1, 'A': 10, 'B': 5}
-STATES = {'A': (0, 1), 'B': (0, 3), 'A_prime': (4, 1), 'B_prime': (2, 3)}
+from env import GridWorld
 
 
-def bellman_lin_eqn_sys():
-    A = []
-    b = []
+def get_true_value(env: GridWorld, gamma: float) -> np.ndarray:
+    '''
+    Compute true value by Bellman equations
 
-    for i in range(GRID_SIZE):
-        for j in range(GRID_SIZE):
-            # generate successive state-reward pair for each state
-            next_states = []
-            next_rewards = []
+    Params
+    ------
+    env: GridWorld
+    gamma: discount factor
+    '''
+    n_states = len(env.state_space)
+    A = np.zeros((n_states, n_states))
+    b = np.zeros(n_states)
 
-            if i == STATES['A'][0] and j == STATES['A'][1]:
-                for _ in range(4):  # since every action from A is gonna lead to A'
-                    next_states.append(STATES['A_prime'])
-                    next_rewards.append(REWARDS['A'])
-            elif i == STATES['B'][0] and j == STATES['B'][1]:
-                for _ in range(4):  # likewise, every action from B is gonna lead to B'
-                    next_states.append(STATES['B_prime'])
-                    next_rewards.append(REWARDS['B'])
-            else:
-                for action in ACTIONS:
-                    if i + ACTIONS[action][0] == -1 or i + ACTIONS[action][0] == GRID_SIZE or j + ACTIONS[action][1] == -1 or j + ACTIONS[action][1] == GRID_SIZE:
-                        next_states.append((i, j))
-                        next_rewards.append(REWARDS['unchanged'])
-                    else:
-                        next_states.append((i + ACTIONS[action][0], j + ACTIONS[action][1]))
-                        next_rewards.append(REWARDS['changed'])
+    for i, state in enumerate(env.state_space):
+        next_history = []
 
-            # Construct system of linear equation (coefficient matrix A, RHS b) from the  Bellman equations
-            coefficients = [0 for _ in range(GRID_SIZE**2)]
-            reward = 0
-            for index, s_prime in enumerate(next_states):
-                coefficients[s_prime[0] * GRID_SIZE + s_prime[1]] += ACTION_PROB * 1 * GAMMA
-                reward += ACTION_PROB * 1 * next_rewards[index]
-            coefficients[i * GRID_SIZE + j] -= 1
-            A.append(coefficients)
-            b.append(-reward)
+        for action in env.action_space:
+            env.state = np.copy(state)
+            next_state, reward, _ = env.step(action)
+            if not (state == next_state).all() and \
+                (state[0], state[1]) not in env.states_:
+                reward = 0
 
-    return A, b
+            next_history.append((next_state, action, reward))
 
+        # Construct system of linear equations Ax=b from Bellman equations
+        coefficients = np.zeros(n_states)
+        reward_ = 0
 
-def get_state_value_function():
-    A, b = bellman_lin_eqn_sys()
-    return np.linalg.solve(A, b)
+        for t, history in enumerate(next_history):
+            next_state, action, reward = history
+            coefficients[next_state[0] * env.height + next_state[1]] \
+                += env.transition_probs[action] * gamma
+            reward_ += env.transition_probs[action] * 1 * reward
+
+        coefficients[state[0] * env.height + state[1]] -= 1
+        A[i] = coefficients
+        b[i] = -reward_
+
+    true_value = np.linalg.solve(A, b)
+    return true_value
 
 
 if __name__ == '__main__':
-    state_value_func = np.array(get_state_value_function())
-    state_value_func = np.around(np.reshape(state_value_func, (GRID_SIZE, GRID_SIZE)), decimals=1)
-    print(state_value_func)
+    height = width = 5
+    special_states = [[(0, 1), (0, 3)], [(4, 1), (2, 3)], [10, 5]]
+    env = GridWorld(height, width, special_states=special_states)
+    gamma = 0.9
+    true_value = get_true_value(env, gamma)
+    true_value = np.around(np.reshape(
+        true_value, (height, width)), decimals=1)
+    print(true_value)
