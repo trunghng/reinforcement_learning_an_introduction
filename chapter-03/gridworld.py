@@ -10,7 +10,8 @@ from env import GridWorld
 
 def get_true_value(env: GridWorld, gamma: float) -> np.ndarray:
     '''
-    Compute true value by Bellman equations
+    Compute true value by Bellman equations by
+    constructing system of linear equations Ax=b from Bellman equations
 
     Params
     ------
@@ -33,7 +34,6 @@ def get_true_value(env: GridWorld, gamma: float) -> np.ndarray:
 
             next_history.append((next_state, action, reward))
 
-        # Construct system of linear equations Ax=b from Bellman equations
         coefficients = np.zeros(n_states)
         reward_ = 0
 
