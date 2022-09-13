@@ -366,10 +366,11 @@ class GridWorld(Env):
                 start_state: Tuple[int, int], 
                 terminal_state: Tuple[int, int],
                 transition_probs: List[float]=[0.25, 0.25, 0.25, 0.25],
+                wind_dist: List[int]=None,
                 cliff: List[Tuple[int, int]]=None,
                 obstacles: List[Tuple[int, int]]=None,
                 special_states: Tuple[List[Tuple[int, int]], \
-                    List[Tuple[int, int]], List[float]]) -> None:
+                    List[Tuple[int, int]], List[float]]=None) -> None:
         '''
         Params
         ------
@@ -378,6 +379,7 @@ class GridWorld(Env):
         start_state: start state
         terminal_state: terminal state
         transition_probs: transition probabilities
+        wind_dist: wind distribution
         cliff: cliff region
         obstacles: obstacles
         special_states: special states, along with corresponding next states, rewards
@@ -391,6 +393,7 @@ class GridWorld(Env):
         self.high = np.array([height, width]) - 1
         self.low = np.array([0, 0])
         self.transition_probs = transition_probs
+        self.wind_dist = win
         self.cliff = cliff
         self.obstacles = obstacles
         self.states_, self.next_states_, self.rewards_ = special_states
@@ -413,11 +416,11 @@ class GridWorld(Env):
         assert action in self.action_space, "Invalid action!"
 
         state_ = (self.state[0], self.state[1])
-        if state_ in self.states_:
+        if self.states_ is not None state_ in self.states_:
             index = self.state_.index(state_)
             next_state = np.array(self.next_states_[index])
             reward = self.rewards_[index]
-        elif state_ in self.cliff:
+        elif self.cliff is not None and state_ in self.cliff:
             next_state = self.reset()
             reward = -100.0
         else:
@@ -425,10 +428,15 @@ class GridWorld(Env):
             next_state = self.state + np.array(action_)
             next_state = np.minimum(next_state, self.high)
             next_state = np.maximum(next_state, self.low)
+
+            if self.wind_dist is not None:
+                next_state += np.arrat([self.wind_dist[self.state[1]], 0])
+
             reward = self._get_reward()
 
             if (self.next_state[0], self.next_state[1]) in self.obstacles:
                 next_state = self.state
+
 
         terminated = self._terminated()
         self.state = next_state
