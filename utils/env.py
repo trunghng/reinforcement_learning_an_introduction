@@ -384,8 +384,8 @@ class GridWorld(Env):
         obstacles: obstacles
         special_states: special states, along with corresponding next states, rewards
         '''
-        self.width = width
         self.height = height
+        self.width = width
         self.start_state = np.array(start_state)
         self.terminal_states = [np.array(state) for state in terminal_states]
         self.state_space = [np.array([i, j]) for i in range(height) 
@@ -421,7 +421,7 @@ class GridWorld(Env):
 
 
     def _get_reward(self) -> float:
-        return -1.0
+        return -1
 
 
     def step(self, action: int) -> Tuple[np.ndarray, float, bool]:
@@ -432,30 +432,44 @@ class GridWorld(Env):
             index = self.states_.index(state_)
             next_state = np.array(self.next_states_[index])
             reward = self.rewards_[index]
-        elif self.cliff is not None and state_ in self.cliff:
-            next_state = self.reset()
-            reward = -100.0
         else:
             action_ = self.action_space_[action]
             next_state = self.state + np.array(action_)
             next_state = np.minimum(next_state, self.high)
             next_state = np.maximum(next_state, self.low)
 
-            if self.wind_dist is not None:
-                next_state += np.arrat([self.wind_dist[self.state[1]], 0])
-
             reward = self._get_reward()
 
-            if self.obstacles is not None and \
+            if self.wind_dist is not None:
+                next_state += np.array([self.wind_dist[self.state[1]], 0])
+            elif self.cliff is not None and \
+                (next_state[0], next_state[1]) in self.cliff:
+                next_state = self.reset()
+                reward = -100
+            elif self.obstacles is not None and \
                 (next_state[0], next_state[1]) in self.obstacles:
                 next_state = self.state
 
-
-        terminated = self._terminated()
         self.state = next_state
+        terminated = self._terminated()
 
         return next_state, reward, terminated
 
 
     def set_obstacles(self, obstacles: List[Tuple[int, int]]) -> None:
         self.obstacles = obstacles
+
+
+class Gambler(Env):
+    '''
+    Gambler's problem env
+    '''
+
+    def __init__(self, n_states: int) -> None:
+        pass
+
+
+
+
+
+

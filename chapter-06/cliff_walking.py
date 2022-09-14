@@ -1,227 +1,245 @@
+import sys
+from os.path import dirname, join, realpath
+dir_path = dirname(dirname(realpath(__file__)))
+sys.path.insert(1, join(dir_path, 'utils'))
+from abc import ABC, abstractmethod
+
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+from tqdm import trange
+
+from env import GridWorld
 
 
-class GridWorld:
+class Agent(ABC):
+    '''
+    Agent abstract class
+    '''
 
-
-    def __init__(self, height, width, start_state, goal_state, cliff):
+    def __init__(self, env: GridWorld, 
+                epsilon: float, alpha: float,
+                gamma: float, n_runs: int,
+                n_eps: int) -> None:
         '''
-        Initialization function
+        Params
+        ------
+        env: GridWorld env
+        epsilon: exploration param
+        alpha: step size param
+        gamma: discount factor
+        n_runs: number of runs
+        n_eps: number of episodes
+        '''
+        self.env = env
+        self.epsilon = epsilon
+        self.alpha = alpha
+        self.gamma = gamma
+        self.n_runs = n_runs
+        self.n_eps = n_eps
+
+
+    @abstractmethod
+    def __call__(self, env: GridWorld,
+                epsilon: float, alpha: float, 
+                gamma: float, n_runs: int,
+                n_eps: int) -> object:
+        pass
+
+
+    def _reset(self) -> np.ndarray:
+        return self.env.reset()
+
+
+    def _epsilon_greedy(self, state: np.ndarray) -> int:
+        '''
+        Choose action according to epsilon-greedy
 
         Params
         ------
-        height: int
-            gridworld's height
-        width: int
-            gridworld's width
-        start_state: [int, int]
-            gridworld's start state
-        goal_state: [int, int]
-            gridworld's goal state
-        cliff: list<[int, int]>
-            gridworld's cliff region
-        '''
-        self.height = height
-        self.width = width
-        self.start_state = start_state
-        self.goal_state = goal_state
-        self.cliff = cliff
-        self.actions = [(-1, 0), (1, 0), (0, 1), (0, -1)]
-        self.rewards = {'cliff': -100, 'non-cliff': -1}
-
-
-    def is_terminal(self, state):
-        '''
-        Whether state @state is the goal state
-
-        Params
-        ------
-        state: [int, int]
-            current state
-        '''
-        return state == self.goal_state
-
-
-    def take_action(self, state, action):
-        '''
-        Take action @action at state @state
-
-        Params
-        ------
-        state: [int, int]
-            current state
-        action: (int, int)
-            action taken
+        state: state of the agent
 
         Return
         ------
-        (next_state, reward): ([int, int], int)
-            a tuple of next state and reward
+        action: chosen action
         '''
-        next_state = [state[0] + action[0], state[1] + action[1]]
-        next_state = [max(0, next_state[0]), max(0, next_state[1])]
-        next_state = [min(self.height - 1, next_state[0]), min(self.width - 1, next_state[1])]
-        if next_state in self.cliff:
-            reward = self.rewards['cliff']
-            next_state = self.start_state
+        if np.random.binomial(1, self.epsilon):
+            action = np.random.choice(self.env.action_space)
         else:
-            reward = self.rewards['non-cliff']
-        return next_state, reward
+            state = self.env.state
+            max_value = self.value_function[state[0], state[1], :].max()
+            action = np.random.choice(np.flatnonzero(
+                self.value_function[state[0], state[1], :] == max_value))
+        return action
 
 
-    def get_action_idx(self, action):
+    @abstractmethod
+    def _run_episode(self) -> float:
+        pass
+
+
+    def run(self) -> np.ndarray:
+        rewards = np.zeros(self.n_eps)
+
+        for _ in trange(self.n_runs):
+            self.value_function = np.zeros((self.env.height, self.env.width, 
+                len(self.env.action_space)))
+
+            for ep in range(self.n_eps):
+                rewards[ep] += self._run_episode()
+
+        rewards /= self.n_runs
+        return rewards
+
+
+    def print_optimal_policy(self) -> None:
+        for x in range(self.env.height):
+            optimal_policy_row = []
+            for y in range(self.env.width):
+                if self.env.terminated(np.array([x, y])):
+                    optimal_policy_row.append('G')
+                    continue
+                best_action = np.argmax(self.value_function[x, y, :])
+                if best_action == 0:
+                    optimal_policy_row.append('U')
+                elif best_action == 1:
+                    optimal_policy_row.append('R')
+                elif best_action == 2:
+                    optimal_policy_row.append('D')
+                elif best_action == 3:
+                    optimal_policy_row.append('L')
+            print(optimal_policy_row)
+
+
+class QLearning(Agent):
+    '''
+    Q-learning agent
+    '''
+
+    def __init__(self, env: GridWorld, 
+            epsilon: float, alpha: float,
+            gamma: float, n_runs: int,
+            n_eps: int) -> None:
+        super().__init__(env, epsilon, alpha, gamma, n_runs, n_eps)
+
+
+    def __call__(self, env: GridWorld,
+                epsilon: float, alpha: float, 
+                gamma: float, n_runs: int,
+                n_eps: int) -> object:
+        return QLearning(env, epsilon, alpha, gamma, n_runs, n_eps)
+
+
+    def _run_episode(self) -> float:
         '''
-        Get index of action in action list
+        Perform an episode 
 
-        Params
+        Return
         ------
-        action: (int, int)
-            action
+        total_reward: total reward of the episode
         '''
-        return self.actions.index(action)
+        state = self._reset()
+        total_reward = 0
+
+        while True:
+            action = self._epsilon_greedy(state)
+            next_state, reward, terminated = self.env.step(action)
+            total_reward += reward
+            self.value_function[state[0], state[1], action] += self.alpha \
+                * (reward + self.gamma * np.max(self.value_function[next_state[0],\
+                next_state[1], :]) - self.value_function[state[0], state[1], action])
+            state = next_state
+
+            if terminated:
+                break
+
+        return total_reward
 
 
-def epsilon_greedy(grid_world, epsilon, Q, state):
+class Sarsa(Agent):
     '''
-    Choose action according to epsilon-greedy policy
-
-    Params:
-    -------
-    grid_world: GridWorld
-    epsilon: float
-    Q: np.ndarray
-        action-value function
-    state: [int, int]
-        current state
-
-    Return
-    ------
-    action: (int, int)
+    Sarsa agent
     '''
-    if np.random.binomial(1, epsilon):
-        action_idx = np.random.randint(len(grid_world.actions))
-        action = grid_world.actions[action_idx]
-    else:
-        values = Q[state[0], state[1], :]
-        action_idx = np.random.choice([action_ for action_, value_ 
-            in enumerate(values) if value_ == np.max(values)])
-        action = grid_world.actions[action_idx]
-    return action
+
+    def __init__(self, env: GridWorld, 
+                epsilon: float, alpha: float, 
+                gamma: float, n_runs: int,
+                n_eps: int) -> None:
+        super().__init__(env, epsilon, alpha, gamma, n_runs, n_eps)
 
 
-def q_learning(Q, grid_world, epsilon, alpha, gamma):
-    '''
-    Q-learning
-
-    Params
-    ------
-    Q: np.ndarray
-        action-value function
-    grid_world: GridWorld
-    epsilon: float
-    alpha: float
-        step size
-    gamma: float
-        discount factor
-    '''
-    state = grid_world.start_state
-    rewards = 0
-
-    while not grid_world.is_terminal(state):
-        action = epsilon_greedy(grid_world, epsilon, Q, state)
-        next_state, reward = grid_world.take_action(state, action)
-        rewards += reward
-        action_idx = grid_world.get_action_idx(action)
-        Q[state[0], state[1], action_idx] += alpha * (reward + gamma * \
-            np.max(Q[next_state[0], next_state[1], :]) - Q[state[0], state[1], action_idx])
-        state = next_state
-
-    return rewards
+    def __call__(self, env: GridWorld,
+                epsilon: float, alpha: float, 
+                gamma: float, n_runs: int,
+                n_eps: int) -> object:
+        return Sarsa(env, epsilon, alpha, gamma, n_runs, n_eps)
 
 
-def sarsa(Q, grid_world, epsilon, alpha, gamma):
-    '''
-    Sarsa
+    def _run_episode(self) -> float:
+        '''
+        Perform an episode 
 
-    Params
-    ------
-    Q: np.ndarray
-        action-value function
-    grid_world: GridWorld
-    epsilon: float
-    alpha: float
-        step size
-    gamma: float
-        discount factor
-    '''
-    state = grid_world.start_state
-    action = epsilon_greedy(grid_world, epsilon, Q, state)
-    rewards = 0
+        Return
+        ------
+        total_reward: total reward of the episode
+        '''
+        state = self._reset()
+        action = self._epsilon_greedy(state)
+        total_reward = 0
 
-    while not grid_world.is_terminal(state):
-        next_state, reward = grid_world.take_action(state, action)
-        rewards += reward
-        next_action = epsilon_greedy(grid_world, epsilon, Q, next_state)
-        action_idx = grid_world.get_action_idx(action)
-        next_action_idx = grid_world.get_action_idx(next_action)
-        Q[state[0], state[1], action_idx] += alpha * (reward + gamma * Q[next_state[0], \
-            next_state[1], next_action_idx] - Q[state[0], state[1], action_idx])
-        state = next_state
-        action = next_action
+        while True:
+            next_state, reward, terminated = self.env.step(action)
+            total_reward += reward
+            next_action = self._epsilon_greedy(next_state)
+            self.value_function[state[0], state[1], action] += \
+                self.alpha * (reward + self.gamma * self.value_function[next_state[0], \
+                next_state[1], next_action] - self.value_function[state[0], state[1], action])
+            state = next_state
+            action = next_action
 
-    return rewards
+            if terminated:
+                break
 
-
-def print_optimal_policy(Q, grid_world):
-    for i in range(grid_world.height):
-        optimal_policy_row = []
-        for j in range(grid_world.width):
-            if grid_world.is_terminal([i, j]):
-                optimal_policy_row.append('G')
-                continue
-            best_action_idx = np.argmax(Q[i, j, :])
-            if best_action_idx == 0:
-                optimal_policy_row.append('U')
-            elif best_action_idx == 1:
-                optimal_policy_row.append('D')
-            elif best_action_idx == 2:
-                optimal_policy_row.append('R')
-            elif best_action_idx == 3:
-                optimal_policy_row.append('L')
-        print(optimal_policy_row)
+        return total_reward
 
 
 if __name__ == '__main__':
     height = 4
     width = 13
-    start_state = [3, 0]
-    goal_state = [3, 12]
-    cliff = [[3, x] for x in range(1, 12)]
-    grid_world = GridWorld(height, width, start_state, goal_state, cliff)
+    start_state = (3, 0)
+    terminal_states = [(3, 12)]
+    cliff = [(3, x) for x in range(1, 12)]
+    env = GridWorld(height, width, start_state, terminal_states, cliff=cliff)
     n_runs = 50
     n_eps = 500
     epsilon = 0.1
     alpha = 0.5
     gamma = 1
-    Q = np.zeros((height, width, len(grid_world.actions)))
-    rewards_q_learning = np.zeros(n_eps)
-    rewards_sarsa = np.zeros(n_eps)
 
-    for _ in tqdm(range(n_runs)):
-        Q_q_learning = Q.copy()
-        Q_sarsa = Q.copy()
+    methods = [
+        {
+            'name': 'Q-learning',
+            'agent': QLearning
+        },
+        {
+            'name': 'Sarsa',
+            'agent': Sarsa
+        }
+    ]
 
-        for ep in range(n_eps):
-            rewards_q_learning[ep] += q_learning(Q_q_learning, grid_world, epsilon, alpha, gamma)
-            rewards_sarsa[ep] += sarsa(Q_sarsa, grid_world, epsilon, alpha, gamma)
+    rewards = []
 
-    rewards_q_learning /= n_runs
-    rewards_sarsa /= n_runs
+    for method in methods:
+        name = method['name']
+        print(name)
+        agent = method['agent'](env, epsilon, alpha, gamma, n_runs, n_eps)
+        rewards_ = agent.run()
+        rewards.append(rewards_)
+        print(f'{name}\'s optimal policy:')
+        agent.print_optimal_policy()
 
-    plt.plot(rewards_q_learning, label='Q-Learning')
-    plt.plot(rewards_sarsa, label='Sarsa')
+    for i, method in enumerate(methods):
+        plt.plot(rewards[i], label=method['name'])
+
     plt.xlabel('Episodes')
     plt.ylabel('Sum of rewards during episode')
     plt.ylim([-100, 0])
@@ -229,8 +247,3 @@ if __name__ == '__main__':
 
     plt.savefig('./cliff_walking.png')
     plt.close()
-
-    print('Q-learning\'s optimal policy:')
-    print_optimal_policy(Q_q_learning, grid_world)
-    print('Sarsa\'s optimal policy:')
-    print_optimal_policy(Q_sarsa, grid_world)
