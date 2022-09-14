@@ -435,14 +435,15 @@ class GridWorld(Env):
         else:
             action_ = self.action_space_[action]
             next_state = self.state + np.array(action_)
+            if self.wind_dist is not None:
+                next_state += np.array([self.wind_dist[self.state[1]], 0])
+
             next_state = np.minimum(next_state, self.high)
             next_state = np.maximum(next_state, self.low)
 
             reward = self._get_reward()
-
-            if self.wind_dist is not None:
-                next_state += np.array([self.wind_dist[self.state[1]], 0])
-            elif self.cliff is not None and \
+            
+            if self.cliff is not None and \
                 (next_state[0], next_state[1]) in self.cliff:
                 next_state = self.reset()
                 reward = -100

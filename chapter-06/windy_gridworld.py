@@ -1,168 +1,157 @@
+import sys
+from os.path import dirname, join, realpath
+dir_path = dirname(dirname(realpath(__file__)))
+sys.path.insert(1, join(dir_path, 'utils'))
+from abc import ABC, abstractmethod
+from typing import List
+
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+from tqdm import trange
+
+from env import GridWorld
 
 
-class WindyGridWorld:
+class Agent(ABC):
+    '''
+    Agent abstract class
+    '''
 
-
-    def __init__(self, height, width, start_state, end_state, wind_dist):
-        self.height = height
-        self.width = width
-        self.start_state = start_state
-        self.end_state = end_state
-        self.wind_dist = wind_dist
-        self.actions = [(-1, 0), (1, 0), (0, 1), (0, -1)]
-        self.reward = -1
-
-
-    def is_terminal(self, state):
+    def __init__(self, env: GridWorld, 
+                epsilon: float, alpha: float,
+                gamma: float, n_eps: int) -> None:
         '''
-        Whether state @state is an end state
+        Params
+        ------
+        env: GridWorld env
+        epsilon: exploration param
+        alpha: step size param
+        gamma: discount factor
+        n_eps: number of episodes
+        '''
+        self.env = env
+        self.epsilon = epsilon
+        self.alpha = alpha
+        self.gamma = gamma
+        self.n_eps = n_eps
+
+
+    def _reset(self) -> np.ndarray:
+        return self.env.reset()
+
+
+    def _epsilon_greedy(self, state: np.ndarray) -> int:
+        '''
+        Choose action according to epsilon-greedy
 
         Params
         ------
-        state: [int, int]
-            current state
-        '''
-        return state == self.end_state
-
-
-    def take_action(self, state, action):
-        '''
-        Take action @action at state @state
-
-        Params
-        ------
-        state: [int, int]
-            current state
-        action: (int, int)
-            action taken
+        state: state of the agent
 
         Return
         ------
-        (next_state, reward): ([int, int], int)
-            a tuple of next state and reward
+        action: chosen action
         '''
-        next_state = [state[0] + action[0] - self.wind_dist[state[1]], state[1] + action[1]]
-        next_state = [max(0, next_state[0]), max(0, next_state[1])]
-        next_state = [min(self.height - 1, next_state[0]), min(self.width - 1, next_state[1])]
-        reward = self.reward
-        return next_state, reward
+        if np.random.binomial(1, self.epsilon):
+            action = np.random.choice(self.env.action_space)
+        else:
+            state = self.env.state
+            max_value = self.value_function[state[0], state[1], :].max()
+            action = np.random.choice(np.flatnonzero(
+                self.value_function[state[0], state[1], :] == max_value))
+        return action
 
 
-    def get_action_idx(self, action):
+    @abstractmethod
+    def _run_episode(self) -> float:
+        pass
+
+
+    def run(self) -> List[int]:
+        n_steps = []
+        self.value_function = np.zeros((self.env.height, self.env.width, 
+            len(self.env.action_space)))
+
+        for ep in trange(self.n_eps):
+            n_steps.append(self._run_episode())
+
+        return n_steps
+
+
+    def print_optimal_policy(self) -> None:
+        for x in range(self.env.height):
+            optimal_policy_row = []
+            for y in range(self.env.width):
+                if self.env.terminated(np.array([x, y])):
+                    optimal_policy_row.append('G')
+                    continue
+                best_action = np.argmax(self.value_function[x, y, :])
+                if best_action == 0:
+                    optimal_policy_row.append('U')
+                elif best_action == 1:
+                    optimal_policy_row.append('R')
+                elif best_action == 2:
+                    optimal_policy_row.append('D')
+                elif best_action == 3:
+                    optimal_policy_row.append('L')
+            print(optimal_policy_row)
+
+
+class Sarsa(Agent):
+    '''
+    Sarsa agent
+    '''
+
+    def __init__(self, env: GridWorld, 
+                epsilon: float, alpha: float, 
+                gamma: float, n_eps: int) -> None:
+        super().__init__(env, epsilon, alpha, gamma, n_eps)
+
+
+    def _run_episode(self) -> int:
         '''
-        Get index of action in action list
+        Perform an episode 
 
-        Params
+        Return
         ------
-        action: (int, int)
-            action
+        n_steps: number of steps of the episode
         '''
-        return self.actions.index(action)
+        state = self._reset()
+        action = self._epsilon_greedy(state)
+        n_steps = 0
 
-
-def epsilon_greedy(grid_world, epsilon, Q, state):
-    '''
-    Choose action according to epsilon-greedy policy
-
-    Params:
-    -------
-    grid_world: GridWorld
-    epsilon: float
-    Q: np.ndarray
-        action-value function
-    state: [int, int]
-        current state
-
-    Return
-    ------
-    action: (int, int)
-    '''
-    if np.random.binomial(1, epsilon):
-        action_idx = np.random.randint(len(grid_world.actions))
-        action = grid_world.actions[action_idx]
-    else:
-        values = Q[state[0], state[1], :]
-        action_idx = np.random.choice([action_ for action_, value_ 
-            in enumerate(values) if value_ == np.max(values)])
-        action = grid_world.actions[action_idx]
-    return action
-
-
-def sarsa(grid_world, n_eps, alpha, epsilon, gamma):
-    '''
-    Sarsa
-
-    Params
-    ------
-    grid_world: GridWorld
-    n_eps: int
-        number of episodes
-    alpha: float
-        step size
-    epsilon: float
-    gamma: float
-        discount factor
-    '''
-    time_steps = []
-    Q = np.zeros((grid_world.height, grid_world.width, len(grid_world.actions)))
-
-    for _ in tqdm(range(n_eps)):
-        steps = 0
-        state = grid_world.start_state
-        action = epsilon_greedy(grid_world ,epsilon, Q, state)
-
-        while not grid_world.is_terminal(state):
-            steps += 1
-            next_state, reward = grid_world.take_action(state, action)
-            next_action = epsilon_greedy(grid_world, epsilon, Q, next_state)
-            action_idx = grid_world.get_action_idx(action)
-            next_action_idx = grid_world.get_action_idx(next_action)
-            Q[state[0], state[1], action_idx] += alpha * (reward + gamma * 
-                Q[next_state[0], next_state[1], next_action_idx] - Q[state[0], state[1], action_idx])
+        while True:
+            n_steps += 1
+            next_state, reward, terminated = self.env.step(action)
+            next_action = self._epsilon_greedy(next_state)
+            self.value_function[state[0], state[1], action] += \
+                self.alpha * (reward + self.gamma * self.value_function[next_state[0], \
+                next_state[1], next_action] - self.value_function[state[0], state[1], action])
             state = next_state
             action = next_action
-        time_steps.append(steps)
 
-    return Q, time_steps
+            if terminated:
+                break
 
-
-def print_optimal_policy(Q, grid_world):
-    print('Optimal policy:')
-    for i in range(grid_world.height):
-        optimal_policy_row = []
-        for j in range(grid_world.width):
-            if grid_world.is_terminal([i, j]):
-                optimal_policy_row.append('E')
-                continue
-            best_action_idx = np.argmax(Q[i, j, :])
-            if best_action_idx == 0:
-                optimal_policy_row.append('U')
-            elif best_action_idx == 1:
-                optimal_policy_row.append('D')
-            elif best_action_idx == 2:
-                optimal_policy_row.append('R')
-            elif best_action_idx == 3:
-                optimal_policy_row.append('L')
-        print(optimal_policy_row)
+        return n_steps
 
 
 if __name__ == '__main__':
     height = 7
     width = 10
     wind_dist = [0, 0, 0, 1, 1, 1, 2, 2, 1, 0]
-    start_state = [3, 0]
-    end_state = [3, 7]
-    grid_world = WindyGridWorld(height, width, start_state, end_state, wind_dist)
+    start_state = (3, 0)
+    terminal_states = [(3, 7)]
+    env = GridWorld(height, width, start_state, terminal_states, wind_dist=wind_dist)
     n_eps = 600
     epsilon = 0.1
     alpha = 0.5
     gamma = 1
 
-    Q, time_steps = sarsa(grid_world, n_eps, alpha, epsilon, gamma)
-    time_steps = np.add.accumulate(time_steps)
+    sarsa = Sarsa(env, epsilon, alpha, gamma, n_eps)
+
+    n_steps = sarsa.run()
+    n_steps = np.add.accumulate(time_steps)
 
     plt.plot(time_steps, np.arange(1, len(time_steps) + 1))
     plt.xlabel('Time steps')
@@ -171,4 +160,4 @@ if __name__ == '__main__':
     plt.savefig('./windy_gridworld.png')
     plt.close()
 
-    print_optimal_policy(Q, grid_world)
+    sarsa.print_optimal_policy()
