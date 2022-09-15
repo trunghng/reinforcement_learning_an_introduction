@@ -46,13 +46,15 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 	- Result: [view](./chapter-06/windy_gridworld.png)
 - [x] Cliff Walking - **Q-Learning**
 	- Code: [view](./chapter-06/cliff_walking.py)
-	- Result: [view](./chapter-06/cliff_walking.png)
+	- Result 1: [view](./chapter-06/cliff-walking-q-learning-sarsa.png)
+	- Result 2: [view](./chapter-06/cliff-walking-q-learning-sarsa-expected-sarsa.png)
 - [x] Cliff Walking - **Sarsa**
 	- Code: [view](./chapter-06/cliff_walking.py)
-	- Result: [view](./chapter-06/cliff_walking.png)
-- [ ] Cliff Walking - **Expected Sarsa**
+	- Result 1: [view](./chapter-06/cliff-walking-q-learning-sarsa.png)
+	- Result 2: [view](./chapter-06/cliff-walking-q-learning-sarsa-expected-sarsa.png)
+- [x] Cliff Walking - **Expected Sarsa**
 	- Code: [view](./chapter-06/cliff_walking.py)
-	- Result: 
+	- Result: [view](./chapter-06/cliff-walking-q-learning-sarsa-expected-sarsa.png)
 - [x] Moutain Car - **Q-Learning**
 	- Code: [view](./chapter-06/mountain_car.py)
 	- Result: [view](./chapter-06/mountain_car.png)

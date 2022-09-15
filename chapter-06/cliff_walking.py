@@ -18,8 +18,7 @@ class Agent(ABC):
 
     def __init__(self, env: GridWorld, 
                 epsilon: float, alpha: float,
-                gamma: float, n_runs: int,
-                n_eps: int) -> None:
+                gamma: float, expected: bool) -> None:
         '''
         Params
         ------
@@ -27,22 +26,21 @@ class Agent(ABC):
         epsilon: exploration param
         alpha: step size param
         gamma: discount factor
-        n_runs: number of runs
-        n_eps: number of episodes
+        expected: whether using expected update (for Expected Sarsa)
         '''
         self.env = env
         self.epsilon = epsilon
         self.alpha = alpha
         self.gamma = gamma
-        self.n_runs = n_runs
-        self.n_eps = n_eps
+        self.expected = expected
+        self.value_function = np.zeros((env.height, 
+            env.width, len(env.action_space)))
 
 
     @abstractmethod
     def __call__(self, env: GridWorld,
                 epsilon: float, alpha: float, 
-                gamma: float, n_runs: int,
-                n_eps: int) -> object:
+                gamma: float, expected: bool) -> object:
         pass
 
 
@@ -72,23 +70,25 @@ class Agent(ABC):
         return action
 
 
+    def _update_Q(self, state: np.ndarray, 
+                action: int, target: float) -> None:
+        '''
+        Update state-action value function
+
+        Params
+        ------
+        state: state of the agent
+        action: action taken at state @state
+        target: target of the update
+        '''
+        estimate = self.value_function[state[0], state[1], action]
+        self.value_function[state[0], state[1], action] \
+            += self.alpha * (target - estimate)
+
+
     @abstractmethod
-    def _run_episode(self) -> float:
+    def run(self) -> float:
         pass
-
-
-    def run(self) -> np.ndarray:
-        rewards = np.zeros(self.n_eps)
-
-        for _ in trange(self.n_runs):
-            self.value_function = np.zeros((self.env.height, self.env.width, 
-                len(self.env.action_space)))
-
-            for ep in range(self.n_eps):
-                rewards[ep] += self._run_episode()
-
-        rewards /= self.n_runs
-        return rewards
 
 
     def print_optimal_policy(self) -> None:
@@ -117,19 +117,26 @@ class QLearning(Agent):
 
     def __init__(self, env: GridWorld, 
             epsilon: float, alpha: float,
-            gamma: float, n_runs: int,
-            n_eps: int) -> None:
-        super().__init__(env, epsilon, alpha, gamma, n_runs, n_eps)
+            gamma: float, expected: bool=None) -> None:
+        '''
+        Params
+        ------
+        env: GridWorld env
+        epsilon: exploration param
+        alpha: step size param
+        gamma: discount factor
+        expected: whether using expected update (for Expected Sarsa)
+        '''
+        super().__init__(env, epsilon, alpha, gamma, expected)
 
 
     def __call__(self, env: GridWorld,
                 epsilon: float, alpha: float, 
-                gamma: float, n_runs: int,
-                n_eps: int) -> object:
-        return QLearning(env, epsilon, alpha, gamma, n_runs, n_eps)
+                gamma: float, expected: bool=None) -> object:
+        return QLearning(env, epsilon, alpha, gamma, expected)
 
 
-    def _run_episode(self) -> float:
+    def run(self) -> float:
         '''
         Perform an episode 
 
@@ -144,9 +151,8 @@ class QLearning(Agent):
             action = self._epsilon_greedy(state)
             next_state, reward, terminated = self.env.step(action)
             total_reward += reward
-            self.value_function[state[0], state[1], action] += self.alpha \
-                * (reward + self.gamma * np.max(self.value_function[next_state[0],\
-                next_state[1], :]) - self.value_function[state[0], state[1], action])
+            target = reward + self.gamma * np.max(self.value_function[next_state[0], next_state[1], :])
+            self._update_Q(state, action, target)
             state = next_state
 
             if terminated:
@@ -157,24 +163,31 @@ class QLearning(Agent):
 
 class Sarsa(Agent):
     '''
-    Sarsa agent
+    Sarsa - Expected Sarsa agent
     '''
 
     def __init__(self, env: GridWorld, 
                 epsilon: float, alpha: float, 
-                gamma: float, n_runs: int,
-                n_eps: int) -> None:
-        super().__init__(env, epsilon, alpha, gamma, n_runs, n_eps)
+                gamma: float, expected: bool=None) -> None:
+        '''
+        Params
+        ------
+        env: GridWorld env
+        epsilon: exploration param
+        alpha: step size param
+        gamma: discount factor
+        expected: whether using expected update (for Expected Sarsa)
+        '''
+        super().__init__(env, epsilon, alpha, gamma, expected)
 
 
     def __call__(self, env: GridWorld,
                 epsilon: float, alpha: float, 
-                gamma: float, n_runs: int,
-                n_eps: int) -> object:
-        return Sarsa(env, epsilon, alpha, gamma, n_runs, n_eps)
+                gamma: float, expected: bool=False) -> object:
+        return Sarsa(env, epsilon, alpha, gamma, expected)
 
 
-    def _run_episode(self) -> float:
+    def run(self) -> float:
         '''
         Perform an episode 
 
@@ -190,9 +203,15 @@ class Sarsa(Agent):
             next_state, reward, terminated = self.env.step(action)
             total_reward += reward
             next_action = self._epsilon_greedy(next_state)
-            self.value_function[state[0], state[1], action] += \
-                self.alpha * (reward + self.gamma * self.value_function[next_state[0], \
-                next_state[1], next_action] - self.value_function[state[0], state[1], action])
+            if self.expected:
+                next_state_exp_value = self.epsilon / len(self.env.action_space) \
+                    * np.sum(self.value_function[next_state[0], next_state[1], :])
+                next_state_exp_value += (1 - self.epsilon) \
+                    * np.max(self.value_function[next_state[0], next_state[1], :])
+                target = reward + self.gamma * next_state_exp_value 
+            else:
+                target = reward + self.gamma * self.value_function[next_state[0], next_state[1], next_action]
+            self._update_Q(state, action, target)
             state = next_state
             action = next_action
 
@@ -202,23 +221,25 @@ class Sarsa(Agent):
         return total_reward
 
 
-if __name__ == '__main__':
-    height = 4
-    width = 13
-    start_state = (3, 0)
-    terminal_states = [(3, 12)]
-    cliff = [(3, x) for x in range(1, 12)]
-    env = GridWorld(height, width, start_state, terminal_states, cliff=cliff)
+def q_learning_sarsa(env: GridWorld, 
+        epsilon: float, gamma: float) -> None:
+    '''
+    Plot comparison of Q-learning - Sarsa
+
+    Params
+    ------
+    env: GridWorld env
+    epsilon: exploration param
+    gamma: discount factor
+    '''
     n_runs = 50
     n_eps = 500
-    epsilon = 0.1
     alpha = 0.5
-    gamma = 1
 
     methods = [
         {
             'name': 'Q-learning',
-            'agent': QLearning
+            'agent': QLearning,
         },
         {
             'name': 'Sarsa',
@@ -226,16 +247,17 @@ if __name__ == '__main__':
         }
     ]
 
-    rewards = []
+    rewards = np.zeros((len(methods), n_eps))
 
-    for method in methods:
-        name = method['name']
-        print(name)
-        agent = method['agent'](env, epsilon, alpha, gamma, n_runs, n_eps)
-        rewards_ = agent.run()
-        rewards.append(rewards_)
-        print(f'{name}\'s optimal policy:')
-        agent.print_optimal_policy()
+    for method_idx, method in enumerate(methods):
+        print(method['name'])
+        for _ in trange(n_runs):
+            agent = method['agent'](env, epsilon, alpha, gamma)
+
+            for ep in range(n_eps):
+                rewards[method_idx, ep] += agent.run()
+
+    rewards /= n_runs
 
     for i, method in enumerate(methods):
         plt.plot(rewards[i], label=method['name'])
@@ -245,5 +267,87 @@ if __name__ == '__main__':
     plt.ylim([-100, 0])
     plt.legend()
 
-    plt.savefig('./cliff_walking.png')
+    plt.savefig('./cliff-walking-q-learning-sarsa.png')
     plt.close()
+
+
+def q_learning_sarsa_expected_sarsa(env: GridWorld, 
+        epsilon: float, gamma: float) -> None:
+    '''
+    Plot comparison of Q-learning - Sarsa - Expected Sarsa
+
+    Params
+    ------
+    env: GridWorld env
+    epsilon: exploration param
+    gamma: discount factor
+    '''
+    alphas = np.arange(0.1, 1.1, 0.1)
+    n_runs = 10
+    n_eps = 1000
+
+    methods = [
+        {
+            'name': 'Q-learning',
+            'agent': QLearning,
+            'expected': False
+        },
+        {
+            'name': 'Sarsa',
+            'agent': Sarsa,
+            'expected': False
+        },
+        {
+            'name': 'Expected Sarsa',
+            'agent': Sarsa,
+            'expected': True
+        }
+    ]
+
+    performace_types = ['Asymptotic', 'Interim']
+    performace_styles = ['solid', 'dashed']
+    performance = np.zeros((len(methods), len(performace_types), len(alphas)))
+
+    for method_idx, method in enumerate(methods):
+        for alpha_idx, alpha in enumerate(alphas):
+            name = method['name']
+            expected = method['expected']
+            print(f'{name}, alpha={alpha}')
+
+            for _ in trange(n_runs):
+                agent = method['agent'](env, epsilon, alpha, gamma, expected)
+
+                for ep in range(n_eps):
+                    rewards = agent.run()
+                    performance[method_idx, 0, alpha_idx] += rewards
+
+                    if ep < 100:
+                        performance[method_idx, 1, alpha_idx] += rewards
+
+    performance[:, 0, :] /= n_eps * n_runs
+    performance[:, 1, :] /= 100 * n_runs
+
+    for pfm_idx, pfm_type in enumerate(performace_types):
+        for method_idx, method in enumerate(methods):
+            label = pfm_type + ' ' + method['name']
+            plt.plot(alphas, performance[method_idx, pfm_idx, :], label=label, 
+                linestyle=performace_styles[pfm_idx])
+    plt.xlabel('alpha')
+    plt.ylabel('Reward per episode')
+    plt.legend()
+
+    plt.savefig('./cliff-walking-q-learning-sarsa-expected-sarsa.png')
+    plt.close()
+
+
+if __name__ == '__main__':
+    height = 4
+    width = 13
+    start_state = (3, 0)
+    terminal_states = [(3, 12)]
+    cliff = [(3, x) for x in range(1, 12)]
+    epsilon = 0.1
+    gamma = 1
+    env = GridWorld(height, width, start_state, terminal_states, cliff=cliff)
+    q_learning_sarsa(env, epsilon, gamma)
+    q_learning_sarsa_expected_sarsa(env, epsilon, gamma)
