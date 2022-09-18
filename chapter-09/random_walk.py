@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm, trange
 
-from env import TransitionRadiusRandomWalk as RandomWalk
+from env import RandomWalk
 
 
 def get_true_value(env: RandomWalk) -> np.ndarray:

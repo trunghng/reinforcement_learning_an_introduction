@@ -42,7 +42,8 @@ class RandomWalk(Env):
                 terminal_states: List[int], 
                 action_space: List[int]=[-1, 1],
                 reward_space: List[float]=[1, 0, -1],
-                transition_probs: Dict[int, float]={-1: 0.5, 1: 0.5}) -> None:
+                transition_probs: Dict[int, float]={-1: 0.5, 1: 0.5},
+                transition_radius: int=None) -> None:
         '''
         Params
         ------
@@ -60,7 +61,7 @@ class RandomWalk(Env):
         self.action_space = action_space
         self.reward_space = reward_space
         self.transition_probs = transition_probs
-        self.reset()
+        self.transition_radius = transition_radius
 
 
     def reset(self) -> int:
@@ -115,39 +116,18 @@ class RandomWalk(Env):
         assert action in self.action_space, "Invalid action!"
         if state is not None:
             self.state = state
-        next_state = self.state + action
+
+        if self.transition_radius is None:
+            next_state = self.state + action
+        else:
+            step = np.random.randint(1, self.transition_radius + 1)
+            next_state = min(self.terminal_states[1], 
+                max(self.terminal_states[0], self.state + action * step))
+
         self.state = next_state
         reward = self._get_reward()
         terminated = self._terminated()
         return next_state, reward, terminated
-
-
-class TransitionRadiusRandomWalk(RandomWalk):
-    '''
-    Random walk with transition radius env
-    '''
-
-    def __init__(self, n_states: int, 
-                start_state: int,
-                terminal_states: List[int], 
-                action_space: List[int]=[-1, 1],
-                reward_space: List[float]=[-1, 0, 1],
-                transition_probs: Dict[int, float]={-1: 0.5, 1: 0.5},
-                transition_radius: int=None) -> None:
-        '''
-        Params
-        ------
-        n_states: number of state
-        start_state: start state
-        terminal_states: list of terminal states
-        action_space: action space
-        reward_space: reward_space
-        transition_probs: transition probabilities
-        transition_radius: transition radius
-        '''
-        super().__init__(n_states, start_state, terminal_states, 
-            action_space, reward_space, transition_probs)
-        self.transition_radius = transition_radius
 
 
     def get_state_transition(self, state: int, 
@@ -164,6 +144,7 @@ class TransitionRadiusRandomWalk(RandomWalk):
         ------
         state_transition: state transition probabilities
         '''
+        assert self.transition_radius is not None, 'Transition radius required!'
         def __possible_next_states(state: int, action: int) -> np.ndarray:
             if action == self.action_space[0]:
                 next_states = np.arange(max(self.terminal_states[0], state - 
@@ -187,35 +168,6 @@ class TransitionRadiusRandomWalk(RandomWalk):
                 - len(next_states)) * next_state_prob
 
         return state_transition
-
-
-    def step(self, action: int, 
-            state: int=None) -> Tuple[int, float, bool]:
-
-        '''
-        Take action
-
-        Params
-        ------
-        action: action taken
-        state: state of the agent
-
-        Return
-        ------
-        next_state: next state
-        reward: corresponding reward
-        reward: whether next state is a terminal state
-        '''
-        assert action in self.action_space, "Invalid action!"
-        if state is not None:
-            self.state = state
-        step = np.random.randint(1, self.transition_radius + 1)
-        next_state = min(self.terminal_states[1], 
-            max(self.terminal_states[0], self.state + action * step))
-        self.state = next_state
-        reward = self._get_reward(next_state)
-        terminated = self._terminated()
-        return next_state, reward, terminated
 
 
 class RaceTrack(Env):
@@ -518,9 +470,6 @@ class Gambler(Env):
 
     def __init__(self, n_states: int) -> None:
         pass
-
-
-
 
 
 
