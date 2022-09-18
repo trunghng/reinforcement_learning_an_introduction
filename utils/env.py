@@ -421,7 +421,7 @@ class GridWorld(Env):
 
 
     def _get_reward(self) -> float:
-        return -1
+        return -1.0
 
 
     def step(self, action: int) -> Tuple[np.ndarray, float, bool]:
@@ -446,19 +446,69 @@ class GridWorld(Env):
             if self.cliff is not None and \
                 (next_state[0], next_state[1]) in self.cliff:
                 next_state = self.reset()
-                reward = -100
-            elif self.obstacles is not None and \
-                (next_state[0], next_state[1]) in self.obstacles:
-                next_state = self.state
+                reward = -100.0
+            elif self.obstacles is not None:
+                reward = 0
+
+                if (next_state[0], next_state[1]) in self.obstacles:
+                    next_state = self.state
 
         self.state = next_state
         terminated = self._terminated()
+
+        if terminated and self.obstacles is not None:
+            reward = 1.0
 
         return next_state, reward, terminated
 
 
     def set_obstacles(self, obstacles: List[Tuple[int, int]]) -> None:
+        '''
+        Set obstacles
+        '''
         self.obstacles = obstacles
+
+
+    def _extend(self, state: np.ndarray, resolution: int) -> List[Tuple[int, int]]:
+        '''
+        Extend state
+
+        Params
+        ------
+        state: state of the agent
+        resolution: extension param
+        '''
+        states = []
+        x, y = state[0], state[1]
+
+        for i in range(x * resolution, (x + 1) * resolution):
+            for j in range(y * resolution, (y + 1) * resolution):
+                states.append((i, j))
+        return states
+
+
+    def extend(self, resolution: int) -> object:
+        '''
+        Extend gridworld
+
+        Params
+        ------
+        resolution: extension param
+
+        Return
+        ------
+        new gridworld
+        '''
+        height = self.height * resolution
+        width = self.width * resolution
+        start_state = self.start_state * resolution
+        terminal_states = [np.array(state) for state_ in self.terminal_states \
+            for state in self._extend(state_, resolution)]
+        obstacles = [state for obstacle in self.obstacles \
+            for state in self._extend(obstacle, resolution)]
+
+        return GridWorld(height, width, start_state, 
+            terminal_states, obstacles=obstacles)
 
 
 class Gambler(Env):
