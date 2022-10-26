@@ -35,7 +35,7 @@ class REINFORCE:
         self.epsilon = epsilon
         self.alpha = alpha
         self.n_eps = n_eps
-        self.theta = np.zeros(len(env.action_space))
+        self.theta = np.array([-1.47, 1.47])
         # feature mapping
         self.x = lambda s, a: np.array([int(a == self.env.action_space[1]), 
                                         int(a == self.env.action_space[0])])
@@ -76,8 +76,9 @@ class REINFORCE:
 
     def select_action(self, state: int, pi: List[List[float]]) -> int:
         amin = np.argmin(pi[state])
-        pi[state][amin] = self.epsilon
-        pi[state][1 - amin] = 1 - self.epsilon
+        if pi[state][amin] < self.epsilon:
+            pi[state][amin] = self.epsilon
+            pi[state][1 - amin] = 1 - self.epsilon
 
         action = self.env.action_space[1] \
             if np.random.binomial(1, pi[state][self.env.action_space[1]]) \
@@ -163,8 +164,8 @@ class REINFORCEBaseline(REINFORCE):
     def __init__(self, env: ShortCorridor,
                 gamma: float,
                 epsilon: float,
-                alpha_w: float,
                 alpha: float,
+                alpha_w: float,
                 n_eps: int) -> None:
         '''
         Parameters
@@ -172,8 +173,8 @@ class REINFORCEBaseline(REINFORCE):
         env: short-corridor env
         gamma: discount factor
         epsilon: exploration parameter
-        alpha_w: step size for w update
         alpha: step size for theta update
+        alpha_w: step size for w update
         n_eps: number of episodes
         '''
         super().__init__(env, gamma, epsilon, alpha, n_eps)
@@ -184,11 +185,11 @@ class REINFORCEBaseline(REINFORCE):
     def __call__(self, env: ShortCorridor,
                 gamma: float,
                 epsilon: float,
-                alpha_w: float,
                 alpha_theta: float,
+                alpha_w: float,
                 n_ep: int):
         return REINFORCEBaseline(env, gamma, epsilon, 
-            alpha_w, alpha_theta, n_eps)
+            alpha_theta, alpha_w, n_eps)
 
 
     def update(self, state: int,
@@ -236,6 +237,7 @@ def reinforce_plot(env: ShortCorridor,
     labels = ['2e-3', '2e-4', '2e-5']
 
     for alpha_idx, alpha in enumerate(alphas):
+        print(f'REINFORCE, alpha={labels[alpha_idx]}')
 
         for run in trange(n_runs):
             reinforce = REINFORCE(env, gamma, epsilon, alpha, n_eps)
@@ -269,8 +271,8 @@ def reinforce_baseline_plot(env: ShortCorridor,
     n_eps: number of episodes
     '''
     alpha = 2e-4
-    alpha_theta = 10 * alpha
-    alpha_w = 100 * alpha
+    alpha_theta = (2**4) * alpha
+    alpha_w = (2**7) * alpha
 
     methods = [
         {
