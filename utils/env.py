@@ -607,3 +607,13 @@ class ShortCorridor(Env):
 
         return next_state, reward, terminated
 
+
+class BairdCounterexample(Env):
+    '''
+    Baird's counterexample
+    '''
+
+    def __init__(self, n_states: int) -> None:
+        self.n_states = n_states
+        self.state_space = np.arange(n_states)
+

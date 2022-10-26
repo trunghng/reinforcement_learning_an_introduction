@@ -117,6 +117,9 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 	- Code: [view](./chapter-10/access_control.py)
 	- Result: 
 #### Chapter 11: Off-policy Methods with Approximation
+- [ ] Baird's counterexample - 
+	- Code: [view](./chapter-11/counterexample.py)
+	- Result: 
 #### Chapter 12: Eligible Traces
 - [x] Random Walk - **Offline lambda-return**
 	- Code: [view](./chapter-12/random_walk.py)
@@ -140,6 +143,6 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [x] Short Corridor - **REINFORCE**
 	- Code: [view](./chapter-13/short_corridor.py)
 	- Result: [view](./chapter-13/short-corridor-reinforce.png)
-- [ ] Short Corridor - **REINFORCE w/ baseline**
+- [x] Short Corridor - **REINFORCE w/ baseline**
 	- Code: [view](./chapter-13/short_corridor.py)
 	- Result: [view](./chapter-13/short-corridor-reinforce-baseline.png)
