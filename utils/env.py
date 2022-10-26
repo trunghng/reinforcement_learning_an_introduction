@@ -83,8 +83,8 @@ class RandomWalk(Env):
         '''
         Get reward
 
-        Return
-        ------
+        Returns
+        -------
         reward: reward corresponding
         '''
         if self.state == self.terminal_states[1]:
@@ -107,13 +107,13 @@ class RandomWalk(Env):
         action: action taken
         state: state of the agent
 
-        Return
-        ------
+        Returns
+        -------
         next_state: next state
         reward: corresponding reward
         reward: whether next state is a terminal state
         '''
-        assert action in self.action_space, "Invalid action!"
+        assert action in self.action_space, 'Invalid action!'
         if state is not None:
             self.state = state
 
@@ -140,8 +140,8 @@ class RandomWalk(Env):
         state: state of the agent
         action: action taken at state @state
 
-        Return
-        ------
+        Returns
+        -------
         state_transition: state transition probabilities
         '''
         assert self.transition_radius is not None, 'Transition radius required!'
@@ -203,8 +203,8 @@ class RaceTrack(Env):
         '''
         Load raw track
 
-        Return
-        ------
+        Returns
+        -------
         track_: race track
         starting_line: starting line
         finish_line: finish line
@@ -272,13 +272,13 @@ class RaceTrack(Env):
         '''
         Take action
 
-        Return
-        ------
+        Returns
+        -------
         next_state: next state
         reward: corresponding reward
         terminated: whether the car has finished the track
         '''
-        assert action in self.action_space, "Invalid action!"
+        assert action in self.action_space, 'Invalid action!'
 
         position, velocity = self.state[0], self.state[1]
 
@@ -377,7 +377,16 @@ class GridWorld(Env):
 
 
     def step(self, action: int) -> Tuple[np.ndarray, float, bool]:
-        assert action in self.action_space, "Invalid action!"
+        '''
+        Take action
+
+        Returns
+        -------
+        next_state: next state
+        reward: corresponding reward
+        terminated: whether the agent has reached the terminal state
+        '''
+        assert action in self.action_space, 'Invalid action!'
 
         state_ = (self.state[0], self.state[1])
         if self.states_ is not None and state_ in self.states_:
@@ -447,8 +456,8 @@ class GridWorld(Env):
         ------
         resolution: extension param
 
-        Return
-        ------
+        Returns
+        -------
         new gridworld
         '''
         height = self.height * resolution
@@ -468,8 +477,133 @@ class Gambler(Env):
     Gambler's problem env
     '''
 
-    def __init__(self, n_states: int) -> None:
+    def __init__(self, goal: int) -> None:
+        '''
+        Params
+        ------
+        goal: goal of the gambler
+        '''
+        self.state_space = np.arange(goal + 1)
+        self.terminal_states = [0, goal]
+        self.high = goal
+        self.low = 0
+
+
+    def reset(self):
         pass
 
 
+    def _terminated(self, state: int) -> bool:
+        return state in self.terminal_states
+
+
+    def _get_reward(self) -> float:
+        return 0
+
+
+    def action_space(self, state: int) -> np.ndarray:
+        return np.arange(min(state, self.high - state) + 1)
+
+
+    def step(self, state: int, action: int, head: bool) -> Tuple[int, float, bool]:
+        assert action in self.action_space(state), 'Invalid action!'
+
+        next_state = state + np.power(-1, head) * action
+        terminated = self._terminated(state)
+
+        if next_state == self.high:
+            reward = 1
+        else:
+            reward = self._get_reward()
+
+        return next_state, reward, terminated
+
+
+class JacksCar(Env):
+    '''
+    Jack's car rental env
+    '''
+
+    def __init__(self) -> None:
+        pass
+
+
+class ShortCorridor(Env):
+    '''
+    Short corridor env
+    '''
+
+    def __init__(self, n_states: int,
+                start_state: int,
+                terminal_state: int, 
+                switched_states: List[int]) -> None:
+        '''
+        Params
+        ------
+        n_states: number of states
+        start_state: start state
+        terminal_state: terminal state
+        switched_states: list of switched-action state
+        '''
+        self.state_space = np.arange(n_states)
+        self.action_space = [0, 1]
+        self.start_state = start_state
+        self.terminal_state = terminal_state
+        self.switched_states = switched_states
+        self.low = 0
+        self.high = terminal_state
+
+
+    def reset(self) -> int:
+        '''
+        Reset env
+        '''
+        self.state = self.start_state
+        return self.state
+
+
+    def _terminated(self) -> bool:
+        '''
+        Whether agent is in terminal state
+        '''
+        return self.state == self.terminal_state
+
+
+    def _get_reward(self) -> float:
+        '''
+        Get reward
+
+        Returns
+        -------
+        reward: reward corresponding
+        '''
+        return -1
+
+
+    def step(self, action: int) -> Tuple[int, float, bool]:
+        '''
+        Take action
+
+        Returns
+        -------
+        next_state: next state
+        reward: corresponding reward
+        terminated: whether the agent has reached the terminal state
+        '''
+        assert action in self.action_space, 'Invalid action!'
+        assert self.state is not None, 'Call reset before using step method'
+
+        action = 2 * action - 1
+        if self.state in self.switched_states:
+            action *= -1
+        next_state = self.state + action
+        next_state = max(min(next_state, self.high), self.low)
+
+        self.state = next_state
+        reward = self._get_reward()
+        terminated = self._terminated()
+        if terminated:
+            reward = 0
+
+        return next_state, reward, terminated
 

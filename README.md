@@ -137,7 +137,7 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 	- Code: [view](./chapter-12/mountain_car.py)
 	- Result: [view](./chapter-12/mountain-car-true-online-sarsa-lambda.png)
 #### Chapter 13: Policy Gradient
-- [ ] Short Corridor - **REINFORCE**
+- [x] Short Corridor - **REINFORCE**
 	- Code: [view](./chapter-13/short_corridor.py)
 	- Result: [view](./chapter-13/short-corridor-reinforce.png)
 - [ ] Short Corridor - **REINFORCE w/ baseline**
