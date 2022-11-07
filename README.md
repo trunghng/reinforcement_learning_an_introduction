@@ -1,5 +1,5 @@
 ## Reinforcement Learning: An Introduction
-Python Implementation for problems in the *Reinforcement Learning: An Introduction - Richard S. Sutton and Andrew G. Barto*  
+Python Implementation for problems in the [**Reinforcement Learning: An Introduction**](https://www.amazon.com/Reinforcement-Learning-Introduction-Adaptive-Computation/dp/0262193981) written by Richard S. Sutton & Andrew G. Barto.
 
 Many ideas in the solutions are inspired by or taken from this well-known [repo](https://github.com/ShangtongZhang/reinforcement-learning-an-introduction) of Shangtong Zhang
 
