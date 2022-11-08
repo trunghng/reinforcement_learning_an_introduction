@@ -48,12 +48,12 @@ Many ideas in the solutions are inspired by or taken from this well-known [repo]
 - [ ] Access Control - **Differential Semi-gradient Sarsa**: [source code](./chapter-10/access_control.py), [result](#).
 #### Chapter 11: Off-policy Methods with Approximation
 #### Chapter 12: Eligible Traces
-- [x] Random Walk - **Offline lambda-return**: [source code](./chapter-12/random_walk.py), [result](./chapter-12/random-walk-offline-lambda-return.png).
-- [x] Random Walk - **TD(lambda)**: [source code](./chapter-12/random_walk.py), [result](./chapter-12/random-walk-td-lambda.png).
-- [x] Random Walk - **True online TD(lambda)**: [source code](./chapter-12/random_walk.py), [result](./chapter-12/random-walk-true-online-td-lambda.png).
-- [x] Mountain Car - **Sarsa(lambda) w/ replacing traces**: [source code](./chapter-12/mountain_car.py), [result](./chapter-12/mountain-car-sarsa-lambda-replacing-trace.png).
-- [x] Mountain Car - **Sarsa(lambda) w/ accumulating traces**: [source code](./chapter-12/mountain_car.py), [result](#).
-- [x] Mountain Car - **True online Sarsa(lambda)**: [source code](./chapter-12/mountain_car.py), [result](./chapter-12/mountain-car-true-online-sarsa-lambda.png).
+- [x] Random Walk - **Offline λ-return**: [source code](./chapter-12/random_walk.py), [result](./chapter-12/random-walk-offline-lambda-return.png).
+- [x] Random Walk - **TD(λ)**: [source code](./chapter-12/random_walk.py), [result](./chapter-12/random-walk-td-lambda.png).
+- [x] Random Walk - **True online TD(λ)**: [source code](./chapter-12/random_walk.py), [result](./chapter-12/random-walk-true-online-td-lambda.png).
+- [x] Mountain Car - **Sarsa(λ) w/ replacing traces**: [source code](./chapter-12/mountain_car.py), [result](./chapter-12/mountain-car-sarsa-lambda-replacing-trace.png).
+- [x] Mountain Car - **Sarsa(λ) w/ accumulating traces**: [source code](./chapter-12/mountain_car.py), [result](#).
+- [x] Mountain Car - **True online Sarsa(λ)**: [source code](./chapter-12/mountain_car.py), [result](./chapter-12/mountain-car-true-online-sarsa-lambda.png).
 #### Chapter 13: Policy Gradient
 - [x] Short Corridor - **REINFORCE**: [source code](./chapter-13/short_corridor.py), [result](./chapter-13/short-corridor-reinforce.png).
 - [x] Short Corridor - **REINFORCE w/ baseline**: [source code](./chapter-13/short_corridor.py), [result](./chapter-13/short-corridor-reinforce-baseline.png).
